@@ -6,6 +6,7 @@ import { SelectModule } from 'primeng/select';
 import { CardModule } from 'primeng/card';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
+import { MessageService } from 'primeng/api';
 import { ReportService, ProfileService, ExamTypeService } from '../../core/services/api.service';
 import { Profile, ExamType, ReportData, ReportSeries } from '../../core/models';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
@@ -220,6 +221,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
   private profileSvc  = inject(ProfileService);
   private examTypeSvc = inject(ExamTypeService);
   private auth        = inject(AuthService);
+  private toast       = inject(MessageService);
 
   profiles   = signal<Profile[]>([]);
   examTypes  = signal<ExamType[]>([]);
@@ -268,7 +270,10 @@ export class ReportsComponent implements OnInit, OnDestroy {
         }
         this.loadingExamTypes.set(false);
       },
-      error: () => this.loadingExamTypes.set(false),
+      error: () => {
+        this.loadingExamTypes.set(false);
+        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os tipos de exame.' });
+      },
     });
   }
 
@@ -295,7 +300,10 @@ export class ReportsComponent implements OnInit, OnDestroy {
           setTimeout(() => this.buildCharts(r.data!.series), 100);
         }
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.loading.set(false);
+        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar o relatório.' });
+      },
     });
   }
 
@@ -312,7 +320,10 @@ export class ReportsComponent implements OnInit, OnDestroy {
     this.analyzing.set(true);
     this.reportSvc.analyze(this.selectedExamTypeId, this.selectedProfileId).subscribe({
       next: r => { this.aiAnalysis.set(r.data?.analysis || null); this.analyzing.set(false); },
-      error: () => this.analyzing.set(false),
+      error: (err) => {
+        this.analyzing.set(false);
+        this.toast.add({ severity: 'error', summary: 'Erro na análise', detail: err.error?.error || 'Não foi possível gerar a análise de IA.' });
+      },
     });
   }
 
@@ -320,12 +331,18 @@ export class ReportsComponent implements OnInit, OnDestroy {
     const url = `${environment.apiUrl}/reports/${this.selectedExamTypeId}/pdf?profileId=${this.selectedProfileId}${this.aiAnalysis() ? '&analysis=' + encodeURIComponent(this.aiAnalysis()!) : ''}`;
     const token = this.auth.token();
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.blob())
+      .then(r => {
+        if (!r.ok) throw new Error('Falha ao gerar PDF');
+        return r.blob();
+      })
       .then(blob => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `hemotrack-relatorio.pdf`;
         a.click();
+      })
+      .catch(() => {
+        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível gerar o PDF do relatório.' });
       });
   }
 

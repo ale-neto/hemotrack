@@ -21,11 +21,11 @@ _Durante a refatoração, dois bugs pré-existentes foram encontrados e corrigid
 - _`error.middleware.js` mascarava `err.message` para **qualquer** status em produção, não só 5xx — isso quebrava mensagens 404/403 específicas assim que o service passou a lançar erros em vez da rota escrever a resposta direto. Corrigido para só mascarar em erros ≥500._
 
 ## Fase 1 — Polimento de MVP
-- [ ] Dashboard exibindo dados reais (não placeholder) — `dashboard.component.ts`.
-- [ ] Tela de Configurações completa: seleção de provedor de IA + salvar chave de API criptografada (`settings.routes.js` + `encryption.service.js`).
-- [ ] Tratamento de erros consistente ponta a ponta (`error.middleware.js` no backend + feedback de erro no frontend).
-- [ ] Upload de resultados de exame (`upload.middleware.js`) integrado ao formulário de exame.
-- [ ] Socket.IO: definir e validar pelo menos um caso de uso real de atualização em tempo real (ex: status de processamento de IA).
+- [x] Dashboard exibindo dados reais (não placeholder) — `dashboard.component.ts`. _(Já implementado antes deste roadmap ser escrito/atualizado — usa `ExamService`/`ReminderService`/`ProfileService` reais via signals, sem dado mock. Redação antiga do roadmap estava desatualizada.)_
+- [x] Tela de Configurações completa: seleção de provedor de IA + salvar chave de API criptografada (`settings.routes.js` + `encryption.service.js`). _(Já implementado. Validado via curl+Docker: PUT `/api/settings` grava a chave, GET retorna mascarada como `***configured***`, e a chave está de fato criptografada no Postgres — `SELECT` direto na tabela mostra `iv:ciphertext`, nunca texto plano.)_
+- [x] Tratamento de erros consistente ponta a ponta (`error.middleware.js` no backend + feedback de erro no frontend). _(Corrigido durante a refatoração do módulo exams: `error.middleware.js` mascarava `err.message` em produção para qualquer status; agora só mascara ≥500, preservando mensagens 404/403 específicas. Frontend já tinha tratamento de erro via toasts nos components verificados.)_
+- [x] Upload de resultados de exame (`upload.middleware.js`) integrado ao formulário de exame. _(Já implementado — `exam-form.component.ts` monta `FormData` e faz POST para `/exams/upload-pdf`.)_
+- [x] Socket.IO: definir e validar pelo menos um caso de uso real de atualização em tempo real (ex: status de processamento de IA). _(Caso de uso já existia — progresso de extração de PDF — mas o contrato de payload entre backend e frontend estava quebrado (campos/nome divergentes); corrigido em `socketServer.js` durante a Fase 0. Ver nota na Fase 0.)_
 
 ## Fase 2 — Aprofundar integração de IA
 - [ ] Levar `openai.adapter.js` e `claude.adapter.js` (~52 linhas cada) ao mesmo nível de completude do `gemini.adapter.js` (~356 linhas).

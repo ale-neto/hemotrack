@@ -186,7 +186,10 @@ export class ExamsListComponent implements OnInit {
       examTypeId: this.selectedExamType,
     }).subscribe({
       next: r => { this.exams.set(r.data || []); this.loading.set(false); },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.loading.set(false);
+        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os exames.' });
+      },
     });
   }
 
