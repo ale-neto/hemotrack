@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hemotrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hemotrack
+      POSTGRES_USER: hemotrack
+      POSTGRES_PASSWORD: hemotrack_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hemotrack']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hemotrack-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: hemotrack
+      DB_USER: hemotrack
+      DB_PASS: hemotrack_pass
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hemotrack-frontend
+    restart: unless-stopped
+    ports:
+      - '4200:80'
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:
+  logs:
