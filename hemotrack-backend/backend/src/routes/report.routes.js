@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { BloodExam, ExamResult, ExamType, UserProfile, UserSettings } = require('../models');
 const authenticate = require('../middleware/auth.middleware');
-const { getAdapter } = require('../services/ai.service');
+const { getAdapter } = require('../shared/gateways/ai/ai-gateway.factory');
 
 // GET /api/reports/:examTypeId?profileId=X
 // Returns comparative data for chart

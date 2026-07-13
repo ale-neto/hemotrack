@@ -13,7 +13,7 @@ const errorHandler = require('./middleware/error.middleware');
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
-const examRoutes = require('./routes/exam.routes');
+const examRoutes = require('./modules/exams/exam.routes');
 const profileRoutes = require('./routes/profile.routes');
 const reportRoutes = require('./routes/report.routes');
 const { settingsRouter, examTypeRouter, reminderRouter } = require('./routes/settings.routes');

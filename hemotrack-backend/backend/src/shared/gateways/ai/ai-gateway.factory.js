@@ -1,7 +1,7 @@
-const GeminiAdapter = require('./adapters/gemini.adapter');
-const OpenAIAdapter = require('./adapters/openai.adapter');
-const ClaudeAdapter = require('./adapters/claude.adapter');
-const { decrypt } = require('./encryption.service');
+const GeminiAdapter = require('./gemini.adapter');
+const OpenAIAdapter = require('./openai.adapter');
+const ClaudeAdapter = require('./claude.adapter');
+const { decrypt } = require('../../../services/encryption.service');
 
 function getAdapter(settings) {
   const apiKey = decrypt(settings.aiApiKey);

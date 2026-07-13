@@ -8,12 +8,12 @@ beforeAll(async () => {
     encrypt: (v) => v,
   }));
   // Força reload do módulo
-  const mod = await import('../../src/services/ai.service.js?t=' + Date.now());
+  const mod = await import('../../src/shared/gateways/ai/ai-gateway.factory.js?t=' + Date.now());
   getAdapter = mod.getAdapter;
 });
 
 // Mock the adapters
-vi.mock('../../src/services/adapters/gemini.adapter.js', () => ({
+vi.mock('../../src/shared/gateways/ai/gemini.adapter.js', () => ({
   default: vi.fn().mockImplementation((apiKey, model) => ({
     provider: 'gemini', apiKey, model,
     extractExamFromPDF: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../../src/services/adapters/gemini.adapter.js', () => ({
   })),
 }));
 
-vi.mock('../../src/services/adapters/openai.adapter.js', () => ({
+vi.mock('../../src/shared/gateways/ai/openai.adapter.js', () => ({
   default: vi.fn().mockImplementation((apiKey, model) => ({
     provider: 'openai', apiKey, model,
     extractExamFromPDF: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('../../src/services/adapters/openai.adapter.js', () => ({
   })),
 }));
 
-vi.mock('../../src/services/adapters/claude.adapter.js', () => ({
+vi.mock('../../src/shared/gateways/ai/claude.adapter.js', () => ({
   default: vi.fn().mockImplementation((apiKey, model) => ({
     provider: 'claude', apiKey, model,
     extractExamFromPDF: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('../../src/services/encryption.service.js', () => ({
   decrypt: vi.fn((v) => v),
 }));
 
-  import { getAdapter } from '../../src/services/ai.service.js';
+  import { getAdapter } from '../../src/shared/gateways/ai/ai-gateway.factory.js';
 
 describe('ai.service - getAdapter', () => {
   const makeSettings = (provider, apiKey = 'test-api-key', model = null) => ({

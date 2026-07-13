@@ -69,7 +69,7 @@ vi.mock('../../src/models/index.js', () => ({
 }));
 
 import { BloodExam, ExamResult, UserProfile } from '../../src/models/index.js';
-import examRoutes from '../../src/routes/exam.routes.js';
+import examRoutes from '../../src/modules/exams/exam.routes.js';
 
 const buildApp = () => {
   const app = express();

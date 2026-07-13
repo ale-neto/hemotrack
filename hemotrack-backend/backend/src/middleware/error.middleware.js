@@ -20,9 +20,11 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ success: false, error: err.message });
   }
 
-  res.status(err.status || 500).json({
+  const status = err.status || 500;
+  const isServerError = status >= 500;
+  res.status(status).json({
     success: false,
-    error: process.env.NODE_ENV === 'production' ? 'Erro interno do servidor' : err.message,
+    error: isServerError && process.env.NODE_ENV === 'production' ? 'Erro interno do servidor' : err.message,
   });
 }
 

@@ -10,11 +10,15 @@ Ordem de implementação em fases pequenas. O código atual já tem bastante sca
 ### Refatoração piloto: módulo `exams` seguindo ARCHITECTURE.md
 Módulo escolhido como prova de conceito da arquitetura em camadas descrita em [ARCHITECTURE.md](ARCHITECTURE.md) (Controller → Service → Repository → Gateway), antes de replicar o padrão nos demais módulos.
 - [x] Resolver duplicidade `exam.routes.js` (319 linhas) vs `exams.routes.js` (35 linhas) — consolidar em um único arquivo de rotas. _(`exams.routes.js` era código morto — nunca importado por `server.js` e, na prática, quebrado (referenciava `router`/models sem os `require`s correspondentes). Removido; `exam.routes.js` é o único arquivo de rotas de exames agora.)_
-- [ ] Extrair `exam.repository.js` — mover todo acesso a `BloodExam`/`ExamResult`/`ExamType` via Sequelize para lá; rota deixa de importar models diretamente.
-- [ ] Extrair `exam.service.js` — mover a regra de negócio hoje inline nas rotas (filtros, orquestração de IA, emissão de eventos) para o service.
-- [ ] Extrair `exam.mapper.js` — substituir os `.toJSON()`/`.toPublicJSON()` ad-hoc do model por um mapper explícito na borda.
-- [ ] Mover `services/adapters/{gemini,openai,claude}.adapter.js` para `shared/gateways/ai/`, com `ai.service.js` virando a factory que escolhe o adapter; `exam.service.js` passa a chamar a gateway em vez da rota chamar `ai.service` direto.
-- [ ] `exam.routes.js` final só registra rotas e delega ao controller — sem lógica, sem Sequelize, sem chamada direta a Puppeteer/Socket.IO/adapters de IA.
+- [x] Extrair `exam.repository.js` — mover todo acesso a `BloodExam`/`ExamResult`/`ExamType` via Sequelize para lá; rota deixa de importar models diretamente. _(`src/modules/exams/exam.repository.js`.)_
+- [x] Extrair `exam.service.js` — mover a regra de negócio hoje inline nas rotas (filtros, orquestração de IA, emissão de eventos) para o service. _(`src/modules/exams/exam.service.js`; inclui a extração/orquestração de PDF em background que antes vivia dentro da rota.)_
+- [x] Extrair `exam.mapper.js` — substituir os `.toJSON()`/`.toPublicJSON()` ad-hoc do model por um mapper explícito na borda. _(`src/modules/exams/exam.mapper.js`; preserva exatamente o formato de resposta anterior — lista/criação/edição sem `status` por resultado, detalhe com `status`.)_
+- [x] Mover `services/adapters/{gemini,openai,claude}.adapter.js` para `shared/gateways/ai/`, com `ai.service.js` virando a factory que escolhe o adapter; `exam.service.js` passa a chamar a gateway em vez da rota chamar `ai.service` direto. _(`src/shared/gateways/ai/{gemini,openai,claude}.adapter.js` + `ai-gateway.factory.js`; `report.routes.js` também atualizado para o novo caminho.)_
+- [x] `exam.routes.js` final só registra rotas e delega ao controller — sem lógica, sem Sequelize, sem chamada direta a Puppeteer/Socket.IO/adapters de IA. _(`src/modules/exams/{exam.routes.js,exam.controller.js}`; validado ponta a ponta via Docker Compose — list/detail/create/update/delete/share/shared-link, incluindo os casos 404/403.)_
+
+_Durante a refatoração, dois bugs pré-existentes foram encontrados e corrigidos (fora do escopo original, mas bloqueando a validação):_
+- _Contrato dos eventos Socket.IO da extração de PDF não batia com o que o frontend espera (`emitExtractionComplete`/`Error` emitiam `{examData}`/`{error}` sem `examId`, e com formato diferente do lido em `socket.service.ts`) — corrigido em `socketServer.js`. Rota morta `POST /exams/extract-pdf` (nunca chamada pelo frontend, não persistia nada) removida._
+- _`error.middleware.js` mascarava `err.message` para **qualquer** status em produção, não só 5xx — isso quebrava mensagens 404/403 específicas assim que o service passou a lançar erros em vez da rota escrever a resposta direto. Corrigido para só mascarar em erros ≥500._
 
 ## Fase 1 — Polimento de MVP
 - [ ] Dashboard exibindo dados reais (não placeholder) — `dashboard.component.ts`.

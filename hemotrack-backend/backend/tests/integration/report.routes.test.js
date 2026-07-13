@@ -9,7 +9,7 @@ vi.mock('../../src/middleware/auth.middleware.js', () => ({
   },
 }));
 
-vi.mock('../../src/services/ai.service.js', () => ({
+vi.mock('../../src/shared/gateways/ai/ai-gateway.factory.js', () => ({
   getAdapter: vi.fn(() => ({
     analyzeExamHistory: vi.fn().mockResolvedValue(
       'Análise: Os exames estão dentro dos parâmetros normais. Manter acompanhamento periódico.'
@@ -49,7 +49,7 @@ vi.mock('../../src/models/index.js', () => ({
 }));
 
 import { BloodExam, ExamType, UserProfile, UserSettings } from '../../src/models/index.js';
-import { getAdapter } from '../../src/services/ai.service.js';
+import { getAdapter } from '../../src/shared/gateways/ai/ai-gateway.factory.js';
 import reportRoutes from '../../src/routes/report.routes.js';
 
 const buildApp = () => {
