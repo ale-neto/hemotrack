@@ -3,13 +3,13 @@
 Ordem de implementação em fases pequenas. O código atual já tem bastante scaffolding (rotas de auth/exams/profile/report/settings, models, 3 adapters de IA, frontend com features separadas) — as fases abaixo assumem "terminar e estabilizar o que existe" antes de aprofundar cada área, na ordem: **fundação → polimento de MVP → IA → relatórios/visualização**.
 
 ## Fase 0 — Fundação (auth + CRUD core de ponta a ponta)
-- [ ] Validar fluxo completo de registro/login/JWT (`auth.routes.js`, `auth.middleware.js`, `AuthGuard`, `AuthInterceptor`) rodando via Docker Compose.
-- [ ] CRUD de exames funcionando de ponta a ponta (criar, listar, detalhar, editar, excluir) entre `exams-list`, `exam-form`, `exam-detail` e a API.
-- [ ] CRUD básico de perfis (`profiles.component.ts` + `profile.routes.js`).
+- [x] Validar fluxo completo de registro/login/JWT (`auth.routes.js`, `auth.middleware.js`, `AuthGuard`, `AuthInterceptor`) rodando via Docker Compose. _(`docker-compose.yml` estava quebrado — build context do frontend apontava para `hemotrack-backend/frontend`, que não existe; movido para a raiz do repo com paths corrigidos para `./hemotrack-backend/backend` e `./hemotrack-frontend`. Stack sobe com `docker compose up --build`; validado via curl: register→201, login→200, `/me` com token→200, `/me` sem token→401.)_
+- [x] CRUD de exames funcionando de ponta a ponta (criar, listar, detalhar, editar, excluir) entre `exams-list`, `exam-form`, `exam-detail` e a API. _(Validado via curl contra a API real em Docker: POST/GET/GET:id/PUT/DELETE em `/api/exams` retornando 200/201 corretamente.)_
+- [x] CRUD básico de perfis (`profiles.component.ts` + `profile.routes.js`). _(Validado via curl: POST/GET/PUT/DELETE em `/api/profiles` retornando 200/201 corretamente.)_
 
 ### Refatoração piloto: módulo `exams` seguindo ARCHITECTURE.md
 Módulo escolhido como prova de conceito da arquitetura em camadas descrita em [ARCHITECTURE.md](ARCHITECTURE.md) (Controller → Service → Repository → Gateway), antes de replicar o padrão nos demais módulos.
-- [ ] Resolver duplicidade `exam.routes.js` (319 linhas) vs `exams.routes.js` (35 linhas) — consolidar em um único arquivo de rotas.
+- [x] Resolver duplicidade `exam.routes.js` (319 linhas) vs `exams.routes.js` (35 linhas) — consolidar em um único arquivo de rotas. _(`exams.routes.js` era código morto — nunca importado por `server.js` e, na prática, quebrado (referenciava `router`/models sem os `require`s correspondentes). Removido; `exam.routes.js` é o único arquivo de rotas de exames agora.)_
 - [ ] Extrair `exam.repository.js` — mover todo acesso a `BloodExam`/`ExamResult`/`ExamType` via Sequelize para lá; rota deixa de importar models diretamente.
 - [ ] Extrair `exam.service.js` — mover a regra de negócio hoje inline nas rotas (filtros, orquestração de IA, emissão de eventos) para o service.
 - [ ] Extrair `exam.mapper.js` — substituir os `.toJSON()`/`.toPublicJSON()` ad-hoc do model por um mapper explícito na borda.

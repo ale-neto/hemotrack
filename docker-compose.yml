@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -21,11 +19,11 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./hemotrack-backend/backend
       dockerfile: Dockerfile
     container_name: hemotrack-backend
     restart: unless-stopped
-    env_file: ./backend/.env
+    env_file: ./hemotrack-backend/backend/.env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -44,7 +42,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./hemotrack-frontend
       dockerfile: Dockerfile
     container_name: hemotrack-frontend
     restart: unless-stopped
