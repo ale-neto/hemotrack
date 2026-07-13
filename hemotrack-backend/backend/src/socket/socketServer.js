@@ -29,22 +29,16 @@ function emitToUser(userId, event, data) {
   io.to(`user_${userId}`).emit(event, data);
 }
 
-function emitExtractionProgress(userId, step, message, percent) {
-  console.log('entrei no emitExtractionProgress');
-  
-  emitToUser(userId, 'extraction_progress', { step, message, percent });
+function emitExtractionProgress(userId, examId, step, progress) {
+  emitToUser(userId, 'extraction_progress', { examId, step, progress });
 }
 
-function emitExtractionComplete(userId, examData) {
-  console.log('entrei no emitExtractionComplete');
-  
-  emitToUser(userId, 'extraction_complete', { examData });
+function emitExtractionComplete(userId, examId, exam) {
+  emitToUser(userId, 'extraction_complete', { examId, exam });
 }
 
-function emitExtractionError(userId, error) {
-    console.log('entrei no emitExtractionError');
-
-  emitToUser(userId, 'extraction_error', { error });
+function emitExtractionError(userId, examId, error) {
+  emitToUser(userId, 'extraction_error', { examId, error });
 }
 
 module.exports = { initSocket, emitToUser, emitExtractionProgress, emitExtractionComplete, emitExtractionError };

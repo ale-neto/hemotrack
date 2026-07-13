@@ -232,7 +232,6 @@ router.post('/upload-pdf',
           if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
           const fullExam = await BloodExam.findByPk(exam.id, { include: [ExamResult, ExamType] });
-          console.log('✅ emitindo complete para userId:', req.user.id, 'examId:', exam.id);
           emitExtractionComplete(req.user.id, exam.id, fullExam);
 
         } catch (err) {
@@ -246,39 +245,6 @@ router.post('/upload-pdf',
     } catch (err) { next(err); }
   }
 );
-
-// POST /api/exams/extract-pdf  (AI extraction)
-router.post('/extract-pdf', authenticate, upload.single('pdf'), async (req, res, next) => {
-  const filePath = req.file?.path;
-  try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'Nenhum PDF enviado' });
-
-    // Respond immediately — processing happens async via Socket.IO
-    res.json({ success: true, message: 'PDF recebido. Aguarde a notificação.' });
-
-    const userId = req.user.id;
-    const settings = await UserSettings.findOne({ where: { userId } });
-    if (!settings?.aiApiKey) {
-      emitExtractionError(userId, 'API Key de IA não configurada. Configure em Ajustes.');
-      return;
-    }
-
-    emitExtractionProgress(userId, 1, 'Lendo arquivo PDF...', 20);
-    const base64PDF = fs.readFileSync(filePath).toString('base64');
-
-    emitExtractionProgress(userId, 2, 'Enviando para análise de IA...', 50);
-    const adapter = getAdapter(settings);
-    const examData = await adapter.extractExamFromPDF(base64PDF);
-
-    emitExtractionProgress(userId, 3, 'Finalizando extração...', 90);
-    fs.unlinkSync(filePath);
-
-    emitExtractionComplete(userId, examData);
-  } catch (err) {
-    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    emitExtractionError(req.user.id, err.message);
-  }
-});
 
 // POST /api/exams/:id/share
 router.post('/:id/share', authenticate, async (req, res, next) => {
