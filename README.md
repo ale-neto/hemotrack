@@ -1,94 +1,96 @@
+🌐 **Language:** English | [Português (Brasil)](README.pt-BR.md)
+
 # 🩸 HemoTrack
 
-HemoTrack é uma aplicação full-stack para organizar exames de sangue, visualizar tendências de resultados ao longo do tempo e obter um resumo assistido por IA sobre os números — com suporte a múltiplos perfis (ex: família) e múltiplos provedores de IA (Gemini, OpenAI ou Claude, à escolha do usuário).
+HemoTrack is a full-stack application for organizing blood exam results, visualizing result trends over time, and getting an AI-assisted summary of the numbers — with support for multiple profiles (e.g. family members) and multiple AI providers (Gemini, OpenAI, or Claude, chosen by the user).
 
-É um projeto de portfólio/estudo: o objetivo principal é demonstrar arquitetura full-stack moderna (Angular standalone + API REST + WebSocket), integração com múltiplos provedores de IA por trás de uma interface comum, e boas práticas básicas de segurança (JWT, criptografia de chaves de API, validação de entrada).
+It's a portfolio/study project: the main goal is to demonstrate modern full-stack architecture (Angular standalone components + REST API + WebSocket), integration with multiple AI providers behind a common interface, and basic security practices (JWT, encrypted API keys, input validation).
 
-> ⚠️ Os feedbacks de IA são apenas informativos e **não substituem consulta médica profissional**.
+> ⚠️ AI feedback is informational only and **does not replace professional medical advice**.
 
-## Funcionalidades
+## Features
 
-- Cadastro de exames de sangue (manual ou por upload de PDF, com extração automática via IA)
-- Múltiplos perfis por usuário (ex: você, cônjuge, filhos)
-- Gráficos de tendência dos marcadores ao longo do tempo
-- Análise assistida por IA do histórico de exames (Gemini, OpenAI ou Claude — chave própria do usuário, criptografada no banco)
-- Geração de relatório em PDF
-- Lembretes de reexame por tipo de exame
-- Atualização em tempo real do progresso de extração de PDF (Socket.IO)
+- Blood exam registration (manual entry or PDF upload with automatic AI extraction)
+- Multiple profiles per user (e.g. yourself, spouse, children)
+- Trend charts for each marker over time
+- AI-assisted analysis of exam history (Gemini, OpenAI, or Claude — user's own API key, encrypted at rest)
+- PDF report generation
+- Re-exam reminders per exam type
+- Real-time PDF extraction progress (Socket.IO)
 
 ## Stack
 
 **Backend** — `hemotrack-backend/backend/`
 - Node.js + Express 4
 - Sequelize 6 + PostgreSQL 16
-- Socket.IO 4 (tempo real)
+- Socket.IO 4 (real-time)
 - JWT (`jsonwebtoken`) + `bcryptjs`
-- `express-validator`, `multer` (upload), Puppeteer (PDF)
-- Criptografia própria para chaves de API de IA (`encryption.service.js`)
-- Testes: Vitest + Supertest · Lint/format: Biome
+- `express-validator`, `multer` (uploads), Puppeteer (PDF)
+- Custom encryption service for AI API keys (`encryption.service.js`)
+- Tests: Vitest + Supertest · Lint/format: Biome
 
 **Frontend** — `hemotrack-frontend/`
-- Angular 19 (standalone components, sem NgModules)
+- Angular 19 (standalone components, no NgModules)
 - PrimeNG + Chart.js + `socket.io-client`
-- TypeScript estrito
+- Strict TypeScript
 
-**IA** — três adapters intercambiáveis atrás de uma interface comum:
+**AI** — three interchangeable adapters behind a common interface:
 `shared/gateways/ai/{gemini,openai,claude}.adapter.js`
 
-## Estrutura do repositório
+## Repository structure
 
 ```
 hemotrack/
-├── docker-compose.yml       # orquestra backend + frontend + PostgreSQL
+├── docker-compose.yml       # orchestrates backend + frontend + PostgreSQL
 ├── hemotrack-backend/
 │   └── backend/             # API (Express, Sequelize, Socket.IO)
 │       └── src/
-│           ├── modules/exams/       # Controller → Service → Repository (módulo piloto da arquitetura)
-│           ├── routes/              # demais rotas (auth, profile, report, settings)
-│           ├── shared/gateways/ai/  # adapters de IA + factory
+│           ├── modules/exams/       # Controller → Service → Repository (architecture pilot module)
+│           ├── routes/              # remaining routes (auth, profile, report, settings)
+│           ├── shared/gateways/ai/  # AI adapters + factory
 │           ├── middleware/ models/ database/ socket/
 ├── hemotrack-frontend/       # Angular 19 + PrimeNG
-└── specs/                    # mission, tech-stack, roadmap e arquitetura do projeto
+└── specs/                    # project mission, tech stack, roadmap and architecture docs
 ```
 
-Consulte [specs/mission.md](specs/mission.md), [specs/tech-stack.md](specs/tech-stack.md), [specs/ARCHITECTURE.md](specs/ARCHITECTURE.md) e [specs/roadmap.md](specs/roadmap.md) para mais detalhes de propósito, stack e decisões de arquitetura.
+See [specs/mission.md](specs/mission.md), [specs/tech-stack.md](specs/tech-stack.md), [specs/ARCHITECTURE.md](specs/ARCHITECTURE.md) and [specs/roadmap.md](specs/roadmap.md) for more details on purpose, stack and architecture decisions.
 
-## Pré-requisitos
+## Prerequisites
 
-- [Docker](https://www.docker.com/) e Docker Compose (forma recomendada de rodar)
-- Ou, para rodar sem Docker: Node.js 20+, PostgreSQL 16 e Angular CLI
+- [Docker](https://www.docker.com/) and Docker Compose (recommended way to run it)
+- Or, to run without Docker: Node.js 20+, PostgreSQL 16 and the Angular CLI
 
-## Como rodar (Docker Compose — recomendado)
+## Running it (Docker Compose — recommended)
 
-1. Configure as variáveis de ambiente do backend:
+1. Set up the backend environment variables:
 
    ```bash
    cd hemotrack-backend/backend
    cp .env.example .env
-   # edite .env — principalmente JWT_SECRET e ENCRYPTION_KEY (veja seção abaixo)
+   # edit .env — especially JWT_SECRET and ENCRYPTION_KEY (see section below)
    cd ../..
    ```
 
-2. Suba os três serviços (PostgreSQL + backend + frontend) a partir da raiz do repositório:
+2. Start all three services (PostgreSQL + backend + frontend) from the repository root:
 
    ```bash
    docker compose up --build
    ```
 
-3. Acesse:
+3. Access:
 
-   | Serviço | URL |
+   | Service | URL |
    |---|---|
    | Frontend | http://localhost:4200 |
    | Backend API | http://localhost:3000/api |
    | Health check | http://localhost:3000/api/health |
 
-Para parar: `docker compose down` (os dados do banco ficam em um volume nomeado e persistem entre execuções; use `docker compose down -v` para apagar tudo).
+To stop: `docker compose down` (database data lives in a named volume and persists across runs; use `docker compose down -v` to wipe it).
 
-## Como rodar localmente (sem Docker)
+## Running it locally (without Docker)
 
 ```bash
-# 1. PostgreSQL (via Docker, só o banco)
+# 1. PostgreSQL (via Docker, just the database)
 docker run -d -p 5432:5432 \
   -e POSTGRES_DB=hemotrack \
   -e POSTGRES_USER=hemotrack \
@@ -97,38 +99,38 @@ docker run -d -p 5432:5432 \
 
 # 2. Backend
 cd hemotrack-backend/backend
-cp .env.example .env   # edite conforme necessário
+cp .env.example .env   # edit as needed
 npm install
-npm run dev             # nodemon, recarrega a cada mudança
+npm run dev             # nodemon, reloads on change
 
-# 3. Frontend (em outro terminal)
+# 3. Frontend (in another terminal)
 cd hemotrack-frontend
 npm install
 npm start                # ng serve --port 4200
 ```
 
-Ao subir, o backend roda as migrações (`sequelize.sync`) e semeia os tipos de exame padrão automaticamente — não é necessário nenhum passo manual de seed.
+On startup, the backend runs migrations (`sequelize.sync`) and seeds the default exam types automatically — no manual seed step needed.
 
-## Variáveis de ambiente (`hemotrack-backend/backend/.env`)
+## Environment variables (`hemotrack-backend/backend/.env`)
 
-| Variável | Descrição |
+| Variable | Description |
 |---|---|
-| `PORT` | Porta do backend (padrão `3000`) |
-| `NODE_ENV` | `development` ou `production` |
-| `JWT_SECRET` | Segredo para assinar tokens JWT — mínimo 32 caracteres |
-| `JWT_EXPIRES_IN` | Validade do token (ex: `7d`) |
-| `ENCRYPTION_KEY` | Chave hexadecimal de 32 bytes (64 caracteres hex) usada para criptografar as chaves de API de IA no banco |
-| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASS` | Conexão com o PostgreSQL |
-| `MAX_FILE_SIZE_MB` | Limite de tamanho para upload de PDF |
-| `UPLOAD_DIR` | Diretório onde os PDFs enviados são salvos |
-| `FRONTEND_URL` | URL do frontend, usada para CORS e para montar links de compartilhamento |
+| `PORT` | Backend port (default `3000`) |
+| `NODE_ENV` | `development` or `production` |
+| `JWT_SECRET` | Secret used to sign JWTs — minimum 32 characters |
+| `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`) |
+| `ENCRYPTION_KEY` | 32-byte hex key (64 hex characters) used to encrypt AI API keys at rest |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASS` | PostgreSQL connection |
+| `MAX_FILE_SIZE_MB` | Max upload size for PDFs |
+| `UPLOAD_DIR` | Directory where uploaded PDFs are stored |
+| `FRONTEND_URL` | Frontend URL, used for CORS and for building share links |
 
-Gere uma `ENCRYPTION_KEY` válida com:
+Generate a valid `ENCRYPTION_KEY` with:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Rodando os testes
+## Running the tests
 
 ```bash
 # Backend — Vitest + Supertest
@@ -140,36 +142,42 @@ cd hemotrack-frontend
 npm test
 ```
 
-## Principais rotas da API
+## Main API routes
 
-Todas as rotas autenticadas esperam `Authorization: Bearer <token>`.
+All authenticated routes expect `Authorization: Bearer <token>`.
 
-| Método | Rota | Descrição |
+| Method | Route | Description |
 |---|---|---|
-| POST | `/api/auth/register` | Cria usuário (+ perfil e configurações padrão) |
-| POST | `/api/auth/login` | Login, retorna JWT |
-| GET | `/api/auth/me` | Dados do usuário autenticado |
-| GET/POST | `/api/exams` | Lista / cria exames |
-| GET/PUT/DELETE | `/api/exams/:id` | Detalha / edita / remove um exame |
-| POST | `/api/exams/upload-pdf` | Upload de PDF com extração assistida por IA (progresso via Socket.IO) |
-| POST | `/api/exams/:id/share` | Gera link público temporário para um exame |
-| GET/POST | `/api/profiles` | Lista / cria perfis (família) |
-| PUT/DELETE | `/api/profiles/:id` | Edita / remove um perfil |
-| GET | `/api/reports/:examTypeId` | Série histórica de um tipo de exame (para o gráfico) |
-| POST | `/api/reports/:examTypeId/analyze` | Gera análise de IA sobre o histórico |
-| GET | `/api/reports/:examTypeId/pdf` | Exporta relatório em PDF |
-| GET/PUT | `/api/settings` | Configurações do usuário (provedor de IA, chave, tema) |
-| GET/POST/DELETE | `/api/exam-types` | Tipos de exame (padrão do sistema + customizados) |
-| GET/POST/PUT/DELETE | `/api/reminders` | Lembretes de reexame |
+| POST | `/api/auth/register` | Creates a user (+ default profile and settings) |
+| POST | `/api/auth/login` | Logs in, returns a JWT |
+| GET | `/api/auth/me` | Authenticated user's data |
+| GET/POST | `/api/exams` | List / create exams |
+| GET/PUT/DELETE | `/api/exams/:id` | Get / update / delete an exam |
+| POST | `/api/exams/upload-pdf` | Upload a PDF for AI-assisted extraction (progress via Socket.IO) |
+| POST | `/api/exams/:id/share` | Generates a temporary public link for an exam |
+| GET/POST | `/api/profiles` | List / create profiles (family members) |
+| PUT/DELETE | `/api/profiles/:id` | Update / delete a profile |
+| GET | `/api/reports/:examTypeId` | Historical series for an exam type (for the chart) |
+| POST | `/api/reports/:examTypeId/analyze` | Generates an AI analysis of the history |
+| GET | `/api/reports/:examTypeId/pdf` | Exports a PDF report |
+| GET/PUT | `/api/settings` | User settings (AI provider, key, theme) |
+| GET/POST/DELETE | `/api/exam-types` | Exam types (system defaults + custom) |
+| GET/POST/PUT/DELETE | `/api/reminders` | Re-exam reminders |
 | GET | `/api/health` | Health check |
 
-## Configurando um provedor de IA
+## Configuring an AI provider
 
-1. Crie uma conta e faça login na aplicação
-2. Acesse **Configurações**
-3. Escolha o provedor (Gemini, OpenAI ou Claude) e informe sua própria API Key
-4. A chave é criptografada antes de ser salva no banco — nunca fica em texto plano
+1. Create an account and log in
+2. Go to **Settings**
+3. Choose a provider (Gemini, OpenAI, or Claude) and enter your own API key
+4. The key is encrypted before being saved — it's never stored in plain text
 
-## Aviso
+## Disclaimer
 
-Este projeto é uma ferramenta de organização pessoal/familiar. Os feedbacks gerados por IA são **informativos** e não substituem avaliação, diagnóstico ou consulta médica profissional.
+This project is a personal/family organization tool. AI-generated feedback is **informational** and does not replace medical evaluation, diagnosis, or professional consultation.
+
+## Copyright
+
+This project was developed by Alexandre Neto.
+
+Feel free to draw inspiration from or use parts of this project, but please give proper credit to the author.
