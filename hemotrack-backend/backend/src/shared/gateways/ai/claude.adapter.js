@@ -1,15 +1,10 @@
 const axios = require('axios');
-const { buildAnalysisPrompt } = require('./gemini.adapter');
-
-const PDF_EXTRACTION_PROMPT = `Analise o PDF do exame de sangue e retorne APENAS um JSON válido, sem markdown.
-Formato: { "exam_type": string, "exam_date": "YYYY-MM-DD"|null, "lab_name": string|null,
-"results": [{ "marker": string, "value": number, "unit": string, "ref_min": number|null, "ref_max": number|null }] }
-Retorne SOMENTE o JSON.`;
+const { PDF_EXTRACTION_PROMPT, normalizeExtractedExams, buildAnalysisPrompt } = require('./exam-taxonomy');
 
 class ClaudeAdapter {
   constructor(apiKey, model) {
     this.apiKey = apiKey;
-    this.model = model;
+    this.model = model || 'claude-3-haiku-20240307';
     this.client = axios.create({
       baseURL: 'https://api.anthropic.com/v1',
       headers: {
@@ -35,7 +30,7 @@ class ClaudeAdapter {
 
     const text = response.data.content[0].text;
     const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    return normalizeExtractedExams(JSON.parse(clean));
   }
 
   async analyzeExamHistory(profile, examType, results) {

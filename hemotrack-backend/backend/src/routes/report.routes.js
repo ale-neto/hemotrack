@@ -3,6 +3,15 @@ const { BloodExam, ExamResult, ExamType, UserProfile, UserSettings } = require('
 const authenticate = require('../middleware/auth.middleware');
 const { getAdapter } = require('../shared/gateways/ai/ai-gateway.factory');
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // GET /api/reports/:examTypeId?profileId=X
 // Returns comparative data for chart
 router.get('/:examTypeId', authenticate, async (req, res, next) => {
@@ -150,39 +159,46 @@ router.get('/:examTypeId/pdf', authenticate, async (req, res, next) => {
   .header-info { display: flex; justify-content: space-between; background: #eff6ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; }
   .footer { margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center; }
   .analysis { background: #f0fdf4; border-left: 4px solid #059669; padding: 16px; margin-top: 24px; white-space: pre-wrap; }
+  .ref-range { display: block; font-weight: normal; font-size: .7rem; opacity: .8; }
+  .legend { font-size: .78rem; color: #64748b; margin-top: -8px; margin-bottom: 16px; }
 </style>
 </head>
 <body>
   <h1>🩸 HemoTrack — Relatório de Exame</h1>
   <div class="header-info">
     <div>
-      <strong>Paciente:</strong> ${p.name}<br>
-      <strong>Idade:</strong> ${p.age || 'N/A'} anos &nbsp;|&nbsp; <strong>Sexo:</strong> ${p.sex || 'N/A'}<br>
+      <strong>Paciente:</strong> ${escapeHtml(p.name)}<br>
+      <strong>Idade:</strong> ${p.age || 'N/A'} anos &nbsp;|&nbsp; <strong>Sexo:</strong> ${escapeHtml(p.sex) || 'N/A'}<br>
       <strong>Peso:</strong> ${p.weight ? p.weight + ' kg' : 'N/A'} &nbsp;|&nbsp; <strong>Altura:</strong> ${p.height ? p.height + ' cm' : 'N/A'} &nbsp;|&nbsp; <strong>IMC:</strong> ${p.bmi || 'N/A'}
     </div>
     <div>
-      <strong>Exame:</strong> ${examType?.name}<br>
+      <strong>Exame:</strong> ${escapeHtml(examType?.name)}<br>
       <strong>Gerado em:</strong> ${today}<br>
       <strong>Total de registros:</strong> ${exams.length}
     </div>
   </div>
   <h2>Histórico de Resultados</h2>
+  <p class="legend">
+    <span class="badge-normal">■</span> normal &nbsp;
+    <span class="badge-high">■</span> acima da referência &nbsp;
+    <span class="badge-low">■</span> abaixo da referência
+  </p>
   <table>
-    <thead><tr><th>Data</th><th>Laboratório</th>${exams[0]?.ExamResults?.map(r => `<th>${r.markerName} (${r.unit || ''})</th>`).join('') || ''}</tr></thead>
+    <thead><tr><th>Data</th><th>Laboratório</th>${exams[0]?.ExamResults?.map(r => `<th>${escapeHtml(r.markerName)} (${escapeHtml(r.unit)})${r.refMin != null || r.refMax != null ? `<span class="ref-range">ref: ${escapeHtml(r.refMin ?? '?')}-${escapeHtml(r.refMax ?? '?')}</span>` : ''}</th>`).join('') || ''}</tr></thead>
     <tbody>
       ${exams.map(exam => `
         <tr>
           <td>${new Date(exam.examDate).toLocaleDateString('pt-BR')}</td>
-          <td>${exam.labName || '—'}</td>
+          <td>${escapeHtml(exam.labName) || '—'}</td>
           ${exam.ExamResults.map(r => {
       const status = r.getStatus();
-      return `<td class="badge-${status}">${r.value}</td>`;
+      return `<td class="badge-${escapeHtml(status)}">${escapeHtml(r.value)}</td>`;
     }).join('')}
         </tr>
       `).join('')}
     </tbody>
   </table>
-  ${analysis ? `<h2>Análise por IA</h2><div class="analysis">${decodeURIComponent(analysis)}</div>` : ''}
+  ${analysis ? `<h2>Análise por IA</h2><div class="analysis">${escapeHtml(analysis)}</div>` : ''}
   <div class="footer">
     Gerado pelo HemoTrack em ${today} &nbsp;|&nbsp; Este relatório é informativo e <strong>não substitui consulta médica profissional</strong>.
   </div>
@@ -195,9 +211,10 @@ router.get('/:examTypeId/pdf', authenticate, async (req, res, next) => {
     const pdfBuffer = await page.pdf({ format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } });
     await browser.close();
 
+    const safeFileName = (examType?.name || 'relatorio').replace(/[^a-zA-Z0-9-]/g, '-');
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="hemotrack-${examType?.name?.replace(/\s/g, '-')}-${today}.pdf"`,
+      'Content-Disposition': `attachment; filename="hemotrack-${safeFileName}-${today}.pdf"`,
     });
     res.send(pdfBuffer);
   } catch (err) { next(err); }

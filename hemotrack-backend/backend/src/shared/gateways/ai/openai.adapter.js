@@ -1,16 +1,11 @@
 const axios = require('axios');
-const fs = require('fs');
-const { buildAnalysisPrompt } = require('./gemini.adapter');
-
-const PDF_EXTRACTION_SYSTEM = `Você é um especialista em análise de exames laboratoriais.
-Analise o exame de sangue e retorne APENAS um JSON válido, sem markdown.
-Formato: { "exam_type": string, "exam_date": "YYYY-MM-DD"|null, "lab_name": string|null, 
-"results": [{ "marker": string, "value": number, "unit": string, "ref_min": number|null, "ref_max": number|null }] }`;
+const pdfParse = require('pdf-parse');
+const { PDF_EXTRACTION_PROMPT, normalizeExtractedExams, buildAnalysisPrompt } = require('./exam-taxonomy');
 
 class OpenAIAdapter {
   constructor(apiKey, model) {
     this.apiKey = apiKey;
-    this.model = model;
+    this.model = model || 'gpt-4o-mini';
     this.client = axios.create({
       baseURL: 'https://api.openai.com/v1',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -18,24 +13,22 @@ class OpenAIAdapter {
   }
 
   async extractExamFromPDF(base64PDF) {
+    // A API de chat completions da OpenAI não aceita PDF nativamente (image_url é só
+    // para imagens) — extrai o texto do PDF localmente e envia como prompt de texto.
+    const { text } = await pdfParse(Buffer.from(base64PDF, 'base64'));
+
     const response = await this.client.post('/chat/completions', {
       model: this.model,
       messages: [
-        { role: 'system', content: PDF_EXTRACTION_SYSTEM },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Extraia os dados deste exame de sangue.' },
-            { type: 'image_url', image_url: { url: `data:application/pdf;base64,${base64PDF}` } },
-          ],
-        },
+        { role: 'system', content: PDF_EXTRACTION_PROMPT },
+        { role: 'user', content: `Texto extraído do PDF do exame de sangue:\n\n${text}` },
       ],
       temperature: 0.1,
     });
 
-    const text = response.data.choices[0].message.content;
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    const content = response.data.choices[0].message.content;
+    const clean = content.replace(/```json|```/g, '').trim();
+    return normalizeExtractedExams(JSON.parse(clean));
   }
 
   async analyzeExamHistory(profile, examType, results) {
