@@ -269,6 +269,7 @@ export class ExamFormComponent implements OnInit, OnDestroy {
   extractionPct = signal(0);
 
   private subs: Subscription[] = [];
+  private extractionTimeoutId?: ReturnType<typeof setTimeout>;
 
   manualForm = this.fb.group({
     profileId: [null as number | null, Validators.required],
@@ -289,18 +290,16 @@ export class ExamFormComponent implements OnInit, OnDestroy {
     // Socket listeners
     this.subs.push(
       this.socketSvc.extractionProgress$.subscribe(p => {
-        console.log('📡 socket progress:', p);
-
         this.extractionStep.set(p.step);
         this.extractionPct.set(p.progress);
       }),
       this.socketSvc.extractionComplete$.subscribe(({ exam }) => {
-        this.extracting.set(false);
+        this.finishExtraction();
         this.toast.add({ severity: 'success', summary: 'Extração concluída!', detail: 'Exame salvo com sucesso.' });
         this.router.navigate(['/exams', exam.id]);
       }),
       this.socketSvc.extractionError$.subscribe(({ error }) => {
-        this.extracting.set(false);
+        this.finishExtraction();
         this.toast.add({ severity: 'error', summary: 'Erro na extração', detail: error });
       })
     );
@@ -308,6 +307,12 @@ export class ExamFormComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
+    clearTimeout(this.extractionTimeoutId);
+  }
+
+  private finishExtraction(): void {
+    clearTimeout(this.extractionTimeoutId);
+    this.extracting.set(false);
   }
 
   onExamTypeChange(examTypeId: number): void {
@@ -366,9 +371,21 @@ export class ExamFormComponent implements OnInit, OnDestroy {
     fd.append('pdf', this.pdfFile()!);
     fd.append('profileId', String(this.pdfForm.value.profileId));
 
+    // Não depende só do socket: se nenhum evento de conclusão/erro chegar (ex:
+    // conexão de tempo real indisponível), destrava o formulário mesmo assim.
+    clearTimeout(this.extractionTimeoutId);
+    this.extractionTimeoutId = setTimeout(() => {
+      this.extracting.set(false);
+      this.toast.add({
+        severity: 'warn',
+        summary: 'Sem resposta',
+        detail: 'A extração está demorando mais que o esperado. Verifique a lista de exames em instantes.',
+      });
+    }, 60000);
+
     this.http.post(`${environment.apiUrl}/exams/upload-pdf`, fd).subscribe({
       error: err => {
-        this.extracting.set(false);
+        this.finishExtraction();
         this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro no upload.' });
       },
     });

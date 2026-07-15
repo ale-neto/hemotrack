@@ -7,7 +7,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { AuthService } from '../../../core/services/auth.service';
-import { SocketService } from '../../../core/services/socket.service';
 
 @Component({
   selector: 'app-login',
@@ -142,7 +141,6 @@ import { SocketService } from '../../../core/services/socket.service';
 export class LoginComponent {
   private fb      = inject(FormBuilder);
   private auth    = inject(AuthService);
-  private socket  = inject(SocketService);
   private router  = inject(Router);
   private toast   = inject(MessageService);
 
@@ -160,7 +158,6 @@ export class LoginComponent {
 
     this.auth.login(email!, password!).subscribe({
       next: () => {
-        this.socket.connect();
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
