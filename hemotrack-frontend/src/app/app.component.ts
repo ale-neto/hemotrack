@@ -1,7 +1,6 @@
 import { Component, effect, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Toast } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
 import { AuthService } from './core/services/auth.service';
 import { SocketService } from './core/services/socket.service';
 
@@ -9,7 +8,6 @@ import { SocketService } from './core/services/socket.service';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, Toast],
-  providers: [MessageService],
   template: `
     <p-toast position="top-right" [life]="4000" />
     <router-outlet />

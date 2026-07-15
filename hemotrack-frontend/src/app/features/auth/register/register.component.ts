@@ -1,12 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { FloatLabelModule } from 'primeng/floatlabel';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService } from '@core/services/auth.service';
+import { NotificationService } from '@core/services/notification.service';
 
 @Component({
   selector: 'app-register',
@@ -47,7 +47,7 @@ import { AuthService } from '../../../core/services/auth.service';
             type="submit"
             label="Criar conta"
             icon="pi pi-user-plus"
-            [loading]="loading"
+            [loading]="loading()"
             [disabled]="form.invalid"
             styleClass="w-full auth-btn"
           />
@@ -85,12 +85,12 @@ import { AuthService } from '../../../core/services/auth.service';
   `],
 })
 export class RegisterComponent {
-  private fb     = inject(FormBuilder);
-  private auth   = inject(AuthService);
-  private router = inject(Router);
-  private toast  = inject(MessageService);
+  private fb           = inject(FormBuilder);
+  private auth         = inject(AuthService);
+  private router       = inject(Router);
+  private notification = inject(NotificationService);
 
-  loading = false;
+  loading = signal(false);
 
   form = this.fb.group({
     name:     ['', [Validators.required, Validators.minLength(2)]],
@@ -100,7 +100,7 @@ export class RegisterComponent {
 
   submit(): void {
     if (this.form.invalid) return;
-    this.loading = true;
+    this.loading.set(true);
     const { name, email, password } = this.form.value;
 
     this.auth.register(name!, email!, password!).subscribe({
@@ -108,8 +108,8 @@ export class RegisterComponent {
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
-        this.loading = false;
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro ao criar conta' });
+        this.loading.set(false);
+        this.notification.error(err, 'Erro ao criar conta');
       },
     });
   }

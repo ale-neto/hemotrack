@@ -1,13 +1,12 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { SkeletonModule } from 'primeng/skeleton';
-import { ExamService, ReminderService, ProfileService } from '../../core/services/api.service';
-import { AuthService } from '../../core/services/auth.service';
-import { BloodExam, ExamReminder, Profile } from '../../core/models';
+import { AuthService } from '@core/services/auth.service';
+import { DashboardFacade } from './facades/dashboard.facade';
 
 @Component({
   selector: 'app-dashboard',
@@ -263,37 +262,18 @@ import { BloodExam, ExamReminder, Profile } from '../../core/models';
     .empty-icon { font-size: 2rem; opacity: .4; }
   `],
 })
-export class DashboardComponent implements OnInit {
-  private examSvc     = inject(ExamService);
-  private reminderSvc = inject(ReminderService);
-  private profileSvc  = inject(ProfileService);
-  auth                = inject(AuthService);
+export class DashboardComponent {
+  private dashboard = inject(DashboardFacade);
+  auth = inject(AuthService);
 
-  loading   = signal(true);
-  exams     = signal<BloodExam[]>([]);
-  reminders = signal<ExamReminder[]>([]);
-  profiles  = signal<Profile[]>([]);
+  firstName = () => this.auth.user()?.name?.split(' ')[0] || '';
 
-  firstName  = () => this.auth.user()?.name?.split(' ')[0] || '';
-  recentExams = () => this.exams().slice(0, 5);
-  overdueReminders = () => this.reminders().filter(r => r.isOverdue);
-  upcomingReminders = () => {
-    const now = new Date();
-    const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return this.reminders().filter(r => {
-      if (!r.nextDueDate || r.isOverdue) return false;
-      const d = new Date(r.nextDueDate);
-      return d >= now && d <= in30;
-    });
-  };
-  sortedReminders = () => [...this.reminders()].sort((a, b) => (a.isOverdue ? -1 : 1));
-
-  ngOnInit(): void {
-    let pending = 3;
-    const done = () => { if (--pending === 0) this.loading.set(false); };
-
-    this.examSvc.getAll().subscribe({ next: r => { this.exams.set(r.data || []); done(); }, error: done });
-    this.reminderSvc.getAll().subscribe({ next: r => { this.reminders.set(r.data || []); done(); }, error: done });
-    this.profileSvc.getAll().subscribe({ next: r => { this.profiles.set(r.data || []); done(); }, error: done });
-  }
+  loading           = this.dashboard.loading;
+  exams             = this.dashboard.exams;
+  reminders         = this.dashboard.reminders;
+  profiles          = this.dashboard.profiles;
+  recentExams       = this.dashboard.recentExams;
+  overdueReminders  = this.dashboard.overdueReminders;
+  upcomingReminders = this.dashboard.upcomingReminders;
+  sortedReminders   = this.dashboard.sortedReminders;
 }
