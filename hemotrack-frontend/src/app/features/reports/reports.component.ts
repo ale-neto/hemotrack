@@ -6,19 +6,15 @@ import { SelectModule } from 'primeng/select';
 import { CardModule } from 'primeng/card';
 import { SkeletonModule } from 'primeng/skeleton';
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
-import { MessageService } from 'primeng/api';
-import { ReportService, ProfileService, ExamTypeService } from '../../core/services/api.service';
-import { Profile, ExamType, ReportData, ReportSeries } from '../../core/models';
-import { Chart, ChartConfiguration, registerables } from 'chart.js';
-import { environment } from '@env/environment';
-import { AuthService } from '@core/services/auth.service';
+import { Chart, registerables } from 'chart.js';
+import { ReportsFacade } from './facades/reports.facade';
+import { buildChartConfig } from './mappers/report-chart.mapper';
+import { minValue, maxValue, avgValue } from './utils/report-stats.util';
+import { downloadBlob } from '@shared/utils/download.util';
+import { ReportSeries } from './models/report.model';
+import { ExamType } from '@features/exams/models/exam.model';
 
 Chart.register(...registerables);
-
-const CHART_COLORS = [
-  '#E8344A', '#2563EB', '#16A34A', '#D97706', '#9333EA',
-  '#0891B2', '#EA580C', '#65A30D',
-];
 
 @Component({
   selector: 'app-reports',
@@ -216,30 +212,30 @@ const CHART_COLORS = [
   `],
 })
 export class ReportsComponent implements OnInit, OnDestroy {
-  private route       = inject(ActivatedRoute);
-  private reportSvc   = inject(ReportService);
-  private profileSvc  = inject(ProfileService);
-  private examTypeSvc = inject(ExamTypeService);
-  private auth        = inject(AuthService);
-  private toast       = inject(MessageService);
+  private route = inject(ActivatedRoute);
+  private reportsFacade = inject(ReportsFacade);
 
-  profiles   = signal<Profile[]>([]);
-  examTypes  = signal<ExamType[]>([]);
-  reportData = signal<ReportData | null>(null);
-  aiAnalysis = signal<string | null>(null);
+  profiles   = this.reportsFacade.profiles;
+  examTypes  = this.reportsFacade.examTypes;
+  reportData = this.reportsFacade.reportData;
+  aiAnalysis = this.reportsFacade.aiAnalysis;
 
-  loading          = signal(false);
-  loadingExamTypes = signal(false);
-  analyzing        = signal(false);
+  loading          = this.reportsFacade.loading;
+  loadingExamTypes = this.reportsFacade.loadingExamTypes;
+  analyzing        = this.reportsFacade.analyzing;
 
   selectedExamTypeId?: number;
   selectedProfileId?:  number;
   activeMarker = signal<string>('');
 
+  minVal = minValue;
+  maxVal = maxValue;
+  avgVal = avgValue;
+
   private charts: Map<string, Chart> = new Map();
 
   ngOnInit(): void {
-    this.profileSvc.getAll().subscribe(r => this.profiles.set(r.data || []));
+    this.reportsFacade.loadProfiles();
     this.loadExamTypes();
 
     const params = this.route.snapshot.queryParams;
@@ -251,99 +247,56 @@ export class ReportsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.charts.forEach(c => c.destroy());
+    this.destroyCharts();
   }
 
   loadExamTypes(): void {
-    this.loadingExamTypes.set(true);
-    this.examTypeSvc.getWithExams(this.selectedProfileId).subscribe({
-      next: r => {
-        this.examTypes.set(r.data || []);
-        // Reset selected exam type if it no longer exists in the list
-        if (this.selectedExamTypeId) {
-          const exists = (r.data || []).some((t: ExamType) => t.id === this.selectedExamTypeId);
-          if (!exists) {
-            this.selectedExamTypeId = undefined;
-            this.reportData.set(null);
-            this.destroyCharts();
-          }
-        }
-        this.loadingExamTypes.set(false);
-      },
-      error: () => {
-        this.loadingExamTypes.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os tipos de exame.' });
-      },
+    this.reportsFacade.loadExamTypes(this.selectedProfileId, (examTypes: ExamType[]) => {
+      if (this.selectedExamTypeId && !examTypes.some(t => t.id === this.selectedExamTypeId)) {
+        this.selectedExamTypeId = undefined;
+        this.reportsFacade.clearReport();
+        this.destroyCharts();
+      }
     });
   }
 
   onProfileChange(): void {
     this.selectedExamTypeId = undefined;
-    this.reportData.set(null);
-    this.aiAnalysis.set(null);
+    this.reportsFacade.clearReport();
     this.destroyCharts();
     this.loadExamTypes();
   }
 
   load(): void {
     if (!this.selectedExamTypeId) return;
-    this.loading.set(true);
-    this.aiAnalysis.set(null);
     this.destroyCharts();
 
-    this.reportSvc.getReport(this.selectedExamTypeId, this.selectedProfileId).subscribe({
-      next: r => {
-        this.reportData.set(r.data || null);
-        this.loading.set(false);
-        if (r.data?.series?.length) {
-          this.activeMarker.set(r.data.series[0].name);
-          setTimeout(() => this.buildCharts(r.data!.series), 100);
-        }
-      },
-      error: () => {
-        this.loading.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar o relatório.' });
-      },
+    this.reportsFacade.load(this.selectedExamTypeId, this.selectedProfileId, data => {
+      if (data?.series?.length) {
+        this.activeMarker.set(data.series[0].name);
+        setTimeout(() => this.buildCharts(data.series), 100);
+      }
     });
   }
 
   selectMarker(name: string): void {
     this.activeMarker.set(name);
     setTimeout(() => {
-      const s = this.reportData()?.series.find(s => s.name === name);
-      if (s) this.buildChart(s);
+      const series = this.reportData()?.series.find(s => s.name === name);
+      if (series) this.buildChart(series);
     }, 50);
   }
 
   analyze(): void {
     if (!this.selectedExamTypeId || !this.selectedProfileId) return;
-    this.analyzing.set(true);
-    this.reportSvc.analyze(this.selectedExamTypeId, this.selectedProfileId).subscribe({
-      next: r => { this.aiAnalysis.set(r.data?.analysis || null); this.analyzing.set(false); },
-      error: (err) => {
-        this.analyzing.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro na análise', detail: err.error?.error || 'Não foi possível gerar a análise de IA.' });
-      },
-    });
+    this.reportsFacade.analyze(this.selectedExamTypeId, this.selectedProfileId);
   }
 
   exportPdf(): void {
-    const url = `${environment.apiUrl}/reports/${this.selectedExamTypeId}/pdf?profileId=${this.selectedProfileId}${this.aiAnalysis() ? '&analysis=' + encodeURIComponent(this.aiAnalysis()!) : ''}`;
-    const token = this.auth.token();
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => {
-        if (!r.ok) throw new Error('Falha ao gerar PDF');
-        return r.blob();
-      })
-      .then(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `hemotrack-relatorio.pdf`;
-        a.click();
-      })
-      .catch(() => {
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível gerar o PDF do relatório.' });
-      });
+    if (!this.selectedExamTypeId || !this.selectedProfileId) return;
+    this.reportsFacade.downloadPdf(this.selectedExamTypeId, this.selectedProfileId, blob =>
+      downloadBlob(blob, 'hemotrack-relatorio.pdf'),
+    );
   }
 
   private buildCharts(series: ReportSeries[]): void {
@@ -351,97 +304,15 @@ export class ReportsComponent implements OnInit, OnDestroy {
   }
 
   private buildChart(series: ReportSeries): void {
-    const canvasId = `chart-${series.name}`;
-    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    const canvas = document.getElementById(`chart-${series.name}`) as HTMLCanvasElement;
     if (!canvas) return;
 
-    if (this.charts.has(series.name)) {
-      this.charts.get(series.name)!.destroy();
-    }
-
-    const labels = series.data.map(d => {
-      const [y, m, day] = d.date.split('-');
-      return `${day}/${m}/${y}`;
-    });
-    const values = series.data.map(d => d.value);
-    const color  = CHART_COLORS[0];
-
-    const datasets: any[] = [
-      {
-        label: series.name,
-        data: values,
-        borderColor: color,
-        backgroundColor: color + '20',
-        borderWidth: 2,
-        pointBackgroundColor: values.map(v => {
-          if (series.refMin !== null && v < series.refMin) return '#2563EB';
-          if (series.refMax !== null && v > series.refMax) return '#E8344A';
-          return '#16A34A';
-        }),
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        tension: 0.35,
-        fill: true,
-      },
-    ];
-
-    if (series.refMin !== null) {
-      datasets.push({
-        label: `Mín (${series.refMin})`,
-        data: new Array(values.length).fill(series.refMin),
-        borderColor: '#2563EB44',
-        borderDash: [6, 4],
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: false,
-      });
-    }
-
-    if (series.refMax !== null) {
-      datasets.push({
-        label: `Máx (${series.refMax})`,
-        data: new Array(values.length).fill(series.refMax),
-        borderColor: '#E8344A44',
-        borderDash: [6, 4],
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: false,
-      });
-    }
-
-    const config: ChartConfiguration = {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: datasets.length > 1 },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} ${series.unit || ''}`,
-            },
-          },
-        },
-        scales: {
-          x: { grid: { color: '#E4E8EF' } },
-          y: {
-            grid: { color: '#E4E8EF' },
-            ticks: { callback: v => `${parseFloat(Number(v).toFixed(2))} ${series.unit || ''}` },
-          },
-        },
-      },
-    };
-
-    this.charts.set(series.name, new Chart(canvas, config));
+    this.charts.get(series.name)?.destroy();
+    this.charts.set(series.name, new Chart(canvas, buildChartConfig(series)));
   }
 
   private destroyCharts(): void {
     this.charts.forEach(c => c.destroy());
     this.charts.clear();
   }
-
-  minVal(s: ReportSeries) { return Math.min(...s.data.map(d => d.value)).toFixed(1); }
-  maxVal(s: ReportSeries) { return Math.max(...s.data.map(d => d.value)).toFixed(1); }
-  avgVal(s: ReportSeries) { return (s.data.reduce((a, d) => a + d.value, 0) / s.data.length).toFixed(1); }
 }
