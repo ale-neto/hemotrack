@@ -35,7 +35,7 @@ Em vez disso:
 - Evitar objetos "shape livre" passando entre camadas — usar `@typedef` para os formatos de DTO/resposta.
 - O frontend Angular **continua em TypeScript estrito** (já é o padrão do Angular CLI) — essa decisão é só sobre o backend.
 
-## Backend (`hemotrack-backend/backend`) — camadas simplificadas
+## Backend (`hemotrack-backend`) — camadas simplificadas
 
 Sem camada de Use Case/Domain separada (isso seria overengineering para o tamanho atual do projeto). Três camadas, bem separadas:
 

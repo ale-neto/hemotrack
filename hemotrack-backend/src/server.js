@@ -18,6 +18,12 @@ const profileRoutes = require('./routes/profile.routes');
 const reportRoutes = require('./routes/report.routes');
 const { settingsRouter, examTypeRouter, reminderRouter } = require('./routes/settings.routes');
 
+// Uma falha não tratada em qualquer job em background (ex: extração de PDF)
+// nunca deveria derrubar o servidor inteiro — loga e mantém o processo vivo.
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled promise rejection:', err);
+});
+
 const app = express();
 const httpServer = http.createServer(app);
 

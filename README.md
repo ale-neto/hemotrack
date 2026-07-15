@@ -20,7 +20,7 @@ It's a portfolio/study project: the main goal is to demonstrate modern full-stac
 
 ## Stack
 
-**Backend** — `hemotrack-backend/backend/`
+**Backend** — `hemotrack-backend/`
 - Node.js + Express 4
 - Sequelize 6 + PostgreSQL 16
 - Socket.IO 4 (real-time)
@@ -42,13 +42,12 @@ It's a portfolio/study project: the main goal is to demonstrate modern full-stac
 ```
 hemotrack/
 ├── docker-compose.yml       # orchestrates backend + frontend + PostgreSQL
-├── hemotrack-backend/
-│   └── backend/             # API (Express, Sequelize, Socket.IO)
-│       └── src/
-│           ├── modules/exams/       # Controller → Service → Repository (architecture pilot module)
-│           ├── routes/              # remaining routes (auth, profile, report, settings)
-│           ├── shared/gateways/ai/  # AI adapters + factory
-│           ├── middleware/ models/ database/ socket/
+├── hemotrack-backend/        # API (Express, Sequelize, Socket.IO)
+│   └── src/
+│       ├── modules/exams/       # Controller → Service → Repository (architecture pilot module)
+│       ├── routes/              # remaining routes (auth, profile, report, settings)
+│       ├── shared/gateways/ai/  # AI adapters + factory
+│       ├── middleware/ models/ database/ socket/
 ├── hemotrack-frontend/       # Angular 19 + PrimeNG
 └── specs/                    # project mission, tech stack, roadmap and architecture docs
 ```
@@ -65,10 +64,10 @@ See [specs/mission.md](specs/mission.md), [specs/tech-stack.md](specs/tech-stack
 1. Set up the backend environment variables:
 
    ```bash
-   cd hemotrack-backend/backend
+   cd hemotrack-backend
    cp .env.example .env
    # edit .env — especially JWT_SECRET and ENCRYPTION_KEY (see section below)
-   cd ../..
+   cd ..
    ```
 
 2. Start all three services (PostgreSQL + backend + frontend) from the repository root:
@@ -98,7 +97,7 @@ docker run -d -p 5432:5432 \
   postgres:16-alpine
 
 # 2. Backend
-cd hemotrack-backend/backend
+cd hemotrack-backend
 cp .env.example .env   # edit as needed
 npm install
 npm run dev             # nodemon, reloads on change
@@ -111,7 +110,7 @@ npm start                # ng serve --port 4200
 
 On startup, the backend runs migrations (`sequelize.sync`) and seeds the default exam types automatically — no manual seed step needed.
 
-## Environment variables (`hemotrack-backend/backend/.env`)
+## Environment variables (`hemotrack-backend/.env`)
 
 | Variable | Description |
 |---|---|
@@ -134,7 +133,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```bash
 # Backend — Vitest + Supertest
-cd hemotrack-backend/backend
+cd hemotrack-backend
 npm test
 
 # Frontend — Karma + Jasmine

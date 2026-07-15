@@ -185,8 +185,14 @@ function processPdfExtractionInBackground(exam, profileId, file, settings, userI
       emitExtractionComplete(userId, exam.id, fullExam);
     } catch (err) {
       console.error('❌ Extraction error:', err.message, err.parent?.detail || '');
-      await repository.updateExam(exam, { status: 'failed' });
-      emitExtractionError(userId, exam.id, err.message);
+      // Best-effort: um job em background nunca pode derrubar o processo por causa
+      // de uma falha secundária ao tentar registrar a falha original.
+      try {
+        await repository.updateExam(exam, { status: 'failed' });
+        emitExtractionError(userId, exam.id, err.message);
+      } catch (innerErr) {
+        console.error('❌ Failed to record extraction failure:', innerErr.message);
+      }
     }
   })();
 }

@@ -20,7 +20,7 @@ HemoTrack é uma aplicação full-stack para organizar exames de sangue, visuali
 
 ## Stack
 
-**Backend** — `hemotrack-backend/backend/`
+**Backend** — `hemotrack-backend/`
 - Node.js + Express 4
 - Sequelize 6 + PostgreSQL 16
 - Socket.IO 4 (tempo real)
@@ -42,13 +42,12 @@ HemoTrack é uma aplicação full-stack para organizar exames de sangue, visuali
 ```
 hemotrack/
 ├── docker-compose.yml       # orquestra backend + frontend + PostgreSQL
-├── hemotrack-backend/
-│   └── backend/             # API (Express, Sequelize, Socket.IO)
-│       └── src/
-│           ├── modules/exams/       # Controller → Service → Repository (módulo piloto da arquitetura)
-│           ├── routes/              # demais rotas (auth, profile, report, settings)
-│           ├── shared/gateways/ai/  # adapters de IA + factory
-│           ├── middleware/ models/ database/ socket/
+├── hemotrack-backend/        # API (Express, Sequelize, Socket.IO)
+│   └── src/
+│       ├── modules/exams/       # Controller → Service → Repository (módulo piloto da arquitetura)
+│       ├── routes/              # demais rotas (auth, profile, report, settings)
+│       ├── shared/gateways/ai/  # adapters de IA + factory
+│       ├── middleware/ models/ database/ socket/
 ├── hemotrack-frontend/       # Angular 19 + PrimeNG
 └── specs/                    # mission, tech-stack, roadmap e arquitetura do projeto
 ```
@@ -65,10 +64,10 @@ Consulte [specs/mission.md](specs/mission.md), [specs/tech-stack.md](specs/tech-
 1. Configure as variáveis de ambiente do backend:
 
    ```bash
-   cd hemotrack-backend/backend
+   cd hemotrack-backend
    cp .env.example .env
    # edite .env — principalmente JWT_SECRET e ENCRYPTION_KEY (veja seção abaixo)
-   cd ../..
+   cd ..
    ```
 
 2. Suba os três serviços (PostgreSQL + backend + frontend) a partir da raiz do repositório:
@@ -98,7 +97,7 @@ docker run -d -p 5432:5432 \
   postgres:16-alpine
 
 # 2. Backend
-cd hemotrack-backend/backend
+cd hemotrack-backend
 cp .env.example .env   # edite conforme necessário
 npm install
 npm run dev             # nodemon, recarrega a cada mudança
@@ -111,7 +110,7 @@ npm start                # ng serve --port 4200
 
 Ao subir, o backend roda as migrações (`sequelize.sync`) e semeia os tipos de exame padrão automaticamente — não é necessário nenhum passo manual de seed.
 
-## Variáveis de ambiente (`hemotrack-backend/backend/.env`)
+## Variáveis de ambiente (`hemotrack-backend/.env`)
 
 | Variável | Descrição |
 |---|---|
@@ -134,7 +133,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```bash
 # Backend — Vitest + Supertest
-cd hemotrack-backend/backend
+cd hemotrack-backend
 npm test
 
 # Frontend — Karma + Jasmine

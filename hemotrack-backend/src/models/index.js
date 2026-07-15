@@ -71,7 +71,7 @@ const BloodExam = sequelize.define('BloodExam', {
   notes: { type: DataTypes.TEXT, allowNull: true },
   shareToken: { type: DataTypes.STRING, allowNull: true, unique: true },
   shareExpiresAt: { type: DataTypes.DATE, allowNull: true },
-  status: { type: DataTypes.ENUM('pending', 'processing', 'completed'), defaultValue: 'completed' },
+  status: { type: DataTypes.ENUM('pending', 'processing', 'completed', 'failed'), defaultValue: 'completed' },
 });
 
 // ─── EXAM RESULT ───────────────────────────────────────────────────────────────
