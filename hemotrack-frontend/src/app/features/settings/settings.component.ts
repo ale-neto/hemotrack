@@ -266,19 +266,31 @@ export class SettingsComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.settingsSvc.get().subscribe(r => {
-      if (r.data) {
-        this.aiForm.patchValue({
-          aiProvider: r.data.aiProvider,
-          aiModel: r.data.aiModel,
-          aiApiKey: r.data.aiApiKey ? '••••••••' : '',
-        });
-        this.availableModels.set(AI_MODELS[r.data.aiProvider] || []);
-      }
+    this.settingsSvc.get().subscribe({
+      next: r => {
+        if (r.data) {
+          this.aiForm.patchValue({
+            aiProvider: r.data.aiProvider,
+            aiModel: r.data.aiModel,
+            aiApiKey: r.data.aiApiKey ? '••••••••' : '',
+          });
+          this.availableModels.set(AI_MODELS[r.data.aiProvider] || []);
+        }
+      },
+      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar as configurações.' }),
     });
-    this.reminderSvc.getAll().subscribe(r => this.reminders.set(r.data || []));
-    this.examTypeSvc.getAll().subscribe(r => this.examTypes.set(r.data || []));
-    this.profileSvc.getAll().subscribe(r => this.profiles.set(r.data || []));
+    this.reminderSvc.getAll().subscribe({
+      next: r => this.reminders.set(r.data || []),
+      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os lembretes.' }),
+    });
+    this.examTypeSvc.getAll().subscribe({
+      next: r => this.examTypes.set(r.data || []),
+      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os tipos de exame.' }),
+    });
+    this.profileSvc.getAll().subscribe({
+      next: r => this.profiles.set(r.data || []),
+      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os perfis.' }),
+    });
   }
 
   onProviderChange(): void {
