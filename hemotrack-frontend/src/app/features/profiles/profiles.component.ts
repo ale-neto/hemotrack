@@ -8,24 +8,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService, MessageService } from 'primeng/api';
-import { ProfileService } from '../../core/services/api.service';
-import { Profile } from '../../core/models';
-
-const RELATIONSHIP_OPTIONS = [
-  { label: 'Titular', value: 'titular' },
-  { label: 'Cônjuge', value: 'cônjuge' },
-  { label: 'Filho(a)', value: 'filho(a)' },
-  { label: 'Pai', value: 'pai' },
-  { label: 'Mãe', value: 'mãe' },
-  { label: 'Outro', value: 'outro' },
-];
-
-const SEX_OPTIONS = [
-  { label: 'Masculino', value: 'masculino' },
-  { label: 'Feminino', value: 'feminino' },
-  { label: 'Outro', value: 'outro' },
-];
+import { ConfirmationService } from 'primeng/api';
+import { ProfilesFacade } from './facades/profiles.facade';
+import { confirmDelete } from '@shared/utils/confirm-delete.util';
+import { Profile, RELATIONSHIP_OPTIONS, SEX_OPTIONS } from './models/profile.model';
 
 @Component({
   selector: 'app-profiles',
@@ -208,13 +194,12 @@ const SEX_OPTIONS = [
   `],
 })
 export class ProfilesComponent implements OnInit {
-  private profileSvc = inject(ProfileService);
+  private profilesFacade = inject(ProfilesFacade);
   private confirm = inject(ConfirmationService);
-  private toast = inject(MessageService);
   private fb = inject(FormBuilder);
 
-  profiles = signal<Profile[]>([]);
-  loading = signal(true);
+  profiles = this.profilesFacade.profiles;
+  loading  = this.profilesFacade.loading;
   saving = signal(false);
   showDialog = false;
   editingId?: number;
@@ -231,18 +216,7 @@ export class ProfilesComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadProfiles();
-  }
-
-  loadProfiles(): void {
-    this.loading.set(true);
-    this.profileSvc.getAll().subscribe({
-      next: r => { this.profiles.set(r.data || []); this.loading.set(false); },
-      error: () => {
-        this.loading.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os perfis.' });
-      },
-    });
+    this.profilesFacade.load();
   }
 
   openForm(profile?: Profile): void {
@@ -263,41 +237,19 @@ export class ProfilesComponent implements OnInit {
   save(): void {
     if (this.form.invalid) return;
     this.saving.set(true);
-    const obs = this.editingId
-      ? this.profileSvc.update(this.editingId, this.form.value as any)
-      : this.profileSvc.create(this.form.value as any);
-
-    obs.subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.showDialog = false;
-        this.toast.add({ severity: 'success', summary: 'Salvo!', detail: 'Perfil atualizado.' });
-        this.loadProfiles();
-      },
-      error: err => {
-        this.saving.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro ao salvar.' });
-      },
-    });
+    this.profilesFacade.save(
+      this.form.getRawValue(),
+      this.editingId,
+      () => { this.saving.set(false); this.showDialog = false; },
+      () => this.saving.set(false),
+    );
   }
 
   confirmDelete(p: Profile): void {
-    this.confirm.confirm({
-      message: `Remover perfil "${p.name}"? Todos os exames associados serão excluídos.`,
-      header: 'Confirmar exclusão',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Remover',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => {
-        this.profileSvc.delete(p.id).subscribe({
-          next: () => {
-            this.toast.add({ severity: 'success', summary: 'Removido', detail: 'Perfil excluído.' });
-            this.loadProfiles();
-          },
-          error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível excluir.' }),
-        });
-      },
-    });
+    confirmDelete(
+      this.confirm,
+      `Remover perfil "${p.name}"? Todos os exames associados serão excluídos.`,
+      () => this.profilesFacade.delete(p.id),
+    );
   }
 }

@@ -15,10 +15,10 @@ export class ProfileApiService {
   getAll(): Observable<ApiResponse<Profile[]>> {
     return this.http.get<ApiResponse<Profile[]>>(`${API}/profiles`);
   }
-  create(data: Partial<Profile>): Observable<ApiResponse<Profile>> {
+  create(data: object): Observable<ApiResponse<Profile>> {
     return this.http.post<ApiResponse<Profile>>(`${API}/profiles`, data);
   }
-  update(id: number, data: Partial<Profile>): Observable<ApiResponse<Profile>> {
+  update(id: number, data: object): Observable<ApiResponse<Profile>> {
     return this.http.put<ApiResponse<Profile>>(`${API}/profiles/${id}`, data);
   }
   delete(id: number): Observable<ApiResponse<void>> {
