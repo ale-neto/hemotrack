@@ -15,7 +15,7 @@ export class SettingsApiService {
   get(): Observable<ApiResponse<UserSettings>> {
     return this.http.get<ApiResponse<UserSettings>>(`${API}/settings`);
   }
-  update(data: Partial<UserSettings>): Observable<ApiResponse<UserSettings>> {
+  update(data: object): Observable<ApiResponse<UserSettings>> {
     return this.http.put<ApiResponse<UserSettings>>(`${API}/settings`, data);
   }
 }

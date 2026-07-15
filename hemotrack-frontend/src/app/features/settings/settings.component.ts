@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, effect } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -10,30 +10,11 @@ import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TagModule } from 'primeng/tag';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService, MessageService } from 'primeng/api';
-import { SettingsService, ReminderService, ExamTypeService, ProfileService } from '../../core/services/api.service';
-import { UserSettings, ExamReminder, ExamType, Profile } from '../../core/models';
-
-const AI_PROVIDERS = [
-  { label: 'Gemini (Google)', value: 'gemini' },
-  { label: 'OpenAI (ChatGPT)', value: 'openai' },
-  { label: 'Claude (Anthropic)', value: 'claude' },
-];
-
-const AI_MODELS: Record<string, { label: string; value: string }[]> = {
-  gemini: [
-    { label: 'Gemini 1.5 Flash (rápido, grátis)', value: 'gemini-2.5-flash' },
-    { label: 'Gemini 1.5 Pro (avançado)', value: 'gemini-2.5-pro' },
-  ],
-  openai: [
-    { label: 'GPT-4o Mini (econômico)', value: 'gpt-4o-mini' },
-    { label: 'GPT-4o (avançado)', value: 'gpt-4o' },
-  ],
-  claude: [
-    { label: 'Claude 3 Haiku (rápido)', value: 'claude-3-haiku-20240307' },
-    { label: 'Claude 3.5 Sonnet (avançado)', value: 'claude-sonnet-4-6' },
-  ],
-};
+import { ConfirmationService } from 'primeng/api';
+import { SettingsFacade } from './facades/settings.facade';
+import { confirmDelete } from '@shared/utils/confirm-delete.util';
+import { AI_PROVIDER_OPTIONS, AI_MODEL_OPTIONS, AiProvider } from './models/settings.model';
+import { ExamReminder } from './models/reminder.model';
 
 @Component({
   selector: 'app-settings',
@@ -234,24 +215,20 @@ const AI_MODELS: Record<string, { label: string; value: string }[]> = {
   `],
 })
 export class SettingsComponent implements OnInit {
-  private settingsSvc  = inject(SettingsService);
-  private reminderSvc  = inject(ReminderService);
-  private examTypeSvc  = inject(ExamTypeService);
-  private profileSvc   = inject(ProfileService);
-  private confirm      = inject(ConfirmationService);
-  private toast        = inject(MessageService);
-  private fb           = inject(FormBuilder);
+  private settingsFacade = inject(SettingsFacade);
+  private confirm = inject(ConfirmationService);
+  private fb = inject(FormBuilder);
 
-  reminders = signal<ExamReminder[]>([]);
-  examTypes = signal<ExamType[]>([]);
-  profiles  = signal<Profile[]>([]);
+  reminders = this.settingsFacade.reminders;
+  examTypes = this.settingsFacade.examTypes;
+  profiles  = this.settingsFacade.profiles;
 
   savingAi       = signal(false);
   savingReminder = signal(false);
   showReminderDialog = false;
 
-  aiProviders = AI_PROVIDERS;
-  availableModels = signal(AI_MODELS['gemini']);
+  aiProviders = AI_PROVIDER_OPTIONS;
+  availableModels = signal(AI_MODEL_OPTIONS['gemini']);
 
   aiForm = this.fb.group({
     aiProvider: ['gemini', Validators.required],
@@ -265,61 +242,39 @@ export class SettingsComponent implements OnInit {
     intervalMonths: [6, [Validators.required, Validators.min(1)]],
   });
 
-  ngOnInit(): void {
-    this.settingsSvc.get().subscribe({
-      next: r => {
-        if (r.data) {
-          this.aiForm.patchValue({
-            aiProvider: r.data.aiProvider,
-            aiModel: r.data.aiModel,
-            aiApiKey: r.data.aiApiKey ? '••••••••' : '',
-          });
-          this.availableModels.set(AI_MODELS[r.data.aiProvider] || []);
-        }
-      },
-      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar as configurações.' }),
-    });
-    this.reminderSvc.getAll().subscribe({
-      next: r => this.reminders.set(r.data || []),
-      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os lembretes.' }),
-    });
-    this.examTypeSvc.getAll().subscribe({
-      next: r => this.examTypes.set(r.data || []),
-      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os tipos de exame.' }),
-    });
-    this.profileSvc.getAll().subscribe({
-      next: r => this.profiles.set(r.data || []),
-      error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os perfis.' }),
+  constructor() {
+    // aiSettings só fica disponível depois da resposta da API (carregada via
+    // loadAll() no ngOnInit) — o effect() reage assim que o signal deixa de
+    // ser null e popula o formulário.
+    effect(() => {
+      const settings = this.settingsFacade.aiSettings();
+      if (!settings) return;
+      this.aiForm.patchValue({
+        aiProvider: settings.aiProvider,
+        aiModel: settings.aiModel,
+        aiApiKey: settings.aiApiKey ? '••••••••' : '',
+      });
+      this.availableModels.set(AI_MODEL_OPTIONS[settings.aiProvider] || []);
     });
   }
 
+  ngOnInit(): void {
+    this.settingsFacade.loadAll();
+  }
+
   onProviderChange(): void {
-    const p = this.aiForm.value.aiProvider as string;
-    this.availableModels.set(AI_MODELS[p] || []);
-    this.aiForm.patchValue({ aiModel: AI_MODELS[p]?.[0]?.value || '' });
+    const provider = this.aiForm.value.aiProvider as AiProvider;
+    this.availableModels.set(AI_MODEL_OPTIONS[provider] || []);
+    this.aiForm.patchValue({ aiModel: AI_MODEL_OPTIONS[provider]?.[0]?.value || '' });
   }
 
   saveAi(): void {
     this.savingAi.set(true);
-    const v = this.aiForm.value;
-    const payload: Partial<UserSettings> = {
-      aiProvider: v.aiProvider as any,
-      aiModel:    v.aiModel || null,
-    };
-    if (v.aiApiKey && !v.aiApiKey.startsWith('•')) {
-      (payload as any).aiApiKey = v.aiApiKey;
-    }
-
-    this.settingsSvc.update(payload).subscribe({
-      next: () => {
-        this.savingAi.set(false);
-        this.toast.add({ severity: 'success', summary: 'Salvo!', detail: 'Configurações de IA atualizadas.' });
-      },
-      error: err => {
-        this.savingAi.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro ao salvar.' });
-      },
-    });
+    this.settingsFacade.saveAi(
+      this.aiForm.getRawValue(),
+      () => this.savingAi.set(false),
+      () => this.savingAi.set(false),
+    );
   }
 
   openReminderForm(): void {
@@ -330,35 +285,16 @@ export class SettingsComponent implements OnInit {
   saveReminder(): void {
     if (this.reminderForm.invalid) return;
     this.savingReminder.set(true);
-    this.reminderSvc.create(this.reminderForm.value as any).subscribe({
-      next: () => {
-        this.savingReminder.set(false);
-        this.showReminderDialog = false;
-        this.toast.add({ severity: 'success', summary: 'Criado!', detail: 'Lembrete configurado.' });
-        this.reminderSvc.getAll().subscribe(r => this.reminders.set(r.data || []));
-      },
-      error: err => {
-        this.savingReminder.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro ao criar.' });
-      },
-    });
+    this.settingsFacade.createReminder(
+      this.reminderForm.getRawValue(),
+      () => { this.savingReminder.set(false); this.showReminderDialog = false; },
+      () => this.savingReminder.set(false),
+    );
   }
 
   deleteReminder(r: ExamReminder): void {
-    this.confirm.confirm({
-      message: `Remover lembrete de "${r.ExamType?.name}"?`,
-      header: 'Confirmar',
-      acceptLabel: 'Remover',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => {
-        this.reminderSvc.delete(r.id).subscribe({
-          next: () => {
-            this.toast.add({ severity: 'success', summary: 'Removido', detail: 'Lembrete excluído.' });
-            this.reminders.update(list => list.filter(x => x.id !== r.id));
-          },
-        });
-      },
+    confirmDelete(this.confirm, `Remover lembrete de "${r.ExamType?.name}"?`, () => {
+      this.settingsFacade.deleteReminder(r.id);
     });
   }
 }

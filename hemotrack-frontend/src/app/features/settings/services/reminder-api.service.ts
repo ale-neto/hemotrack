@@ -15,7 +15,7 @@ export class ReminderApiService {
   getAll(): Observable<ApiResponse<ExamReminder[]>> {
     return this.http.get<ApiResponse<ExamReminder[]>>(`${API}/reminders`);
   }
-  create(data: Partial<ExamReminder>): Observable<ApiResponse<ExamReminder>> {
+  create(data: object): Observable<ApiResponse<ExamReminder>> {
     return this.http.post<ApiResponse<ExamReminder>>(`${API}/reminders`, data);
   }
   delete(id: number): Observable<ApiResponse<void>> {
