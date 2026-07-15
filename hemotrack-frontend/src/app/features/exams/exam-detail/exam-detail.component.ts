@@ -1,12 +1,13 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
-import { ExamService } from '../../../core/services/api.service';
-import { BloodExam, ExamResult, ResultStatus } from '../../../core/models';
+import { ExamsFacade } from '../facades/exams.facade';
+import { ResultStatus } from '../models/exam.model';
+import { RESULT_STATUS_LABELS } from '@shared/utils/result-status.util';
 
 @Component({
   selector: 'app-exam-detail',
@@ -122,27 +123,18 @@ import { BloodExam, ExamResult, ResultStatus } from '../../../core/models';
   `],
 })
 export class ExamDetailComponent implements OnInit {
-  private route   = inject(ActivatedRoute);
-  private examSvc = inject(ExamService);
+  private route = inject(ActivatedRoute);
+  private examsFacade = inject(ExamsFacade);
 
-  loading = signal(true);
-  exam    = signal<BloodExam | null>(null);
+  loading = this.examsFacade.loadingDetail;
+  exam    = this.examsFacade.currentExam;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.examSvc.getOne(id).subscribe({
-      next: r => { this.exam.set(r.data || null); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
+    this.examsFacade.loadExam(id);
   }
 
-  statusLabel(s: ResultStatus): string {
-    const map: Record<ResultStatus, string> = {
-      normal:          'Normal',
-      high:            'Alto',
-      low:             'Baixo',
-      sem_referencia:  'Sem ref.',
-    };
-    return map[s];
+  statusLabel(status: ResultStatus): string {
+    return RESULT_STATUS_LABELS[status];
   }
 }

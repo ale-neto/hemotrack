@@ -10,15 +10,10 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TextareaModule } from 'primeng/textarea';
-import { MessageService } from 'primeng/api';
-import { Subscription } from 'rxjs';
-import { ExamService, ProfileService, ExamTypeService } from '../../../core/services/api.service';
-import { SocketService } from '../../../core/services/socket.service';
-import { Profile, ExamType, Marker } from '../../../core/models';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-
-interface ManualResult { markerName: string; value: number | null; unit: string; refMin: number | null; refMax: number | null; }
+import { ExamsFacade } from '../facades/exams.facade';
+import { ExamExtractionFacade } from '../facades/exam-extraction.facade';
+import { ManualResultRow, markersToResultRows, buildManualExamPayload } from '../mappers/exam-form.mapper';
+import { Marker } from '../models/exam.model';
 
 @Component({
   selector: 'app-exam-form',
@@ -248,28 +243,22 @@ interface ManualResult { markerName: string; value: number | null; unit: string;
 })
 export class ExamFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
-  private examSvc = inject(ExamService);
-  private profileSvc = inject(ProfileService);
-  private examTypeSvc = inject(ExamTypeService);
-  private socketSvc = inject(SocketService);
   private router = inject(Router);
-  private toast = inject(MessageService);
-  private http = inject(HttpClient);
+  exams = inject(ExamsFacade);
+  extraction = inject(ExamExtractionFacade);
 
-  profiles = signal<Profile[]>([]);
-  examTypes = signal<ExamType[]>([]);
   markers = signal<Marker[]>([]);
-  results: ManualResult[] = [];
+  results: ManualResultRow[] = [];
 
   activeTab = signal<string>('manual');
   saving = signal(false);
-  extracting = signal(false);
   pdfFile = signal<File | null>(null);
-  extractionStep = signal('Aguardando...');
-  extractionPct = signal(0);
 
-  private subs: Subscription[] = [];
-  private extractionTimeoutId?: ReturnType<typeof setTimeout>;
+  profiles  = this.exams.profiles;
+  examTypes = this.exams.examTypes;
+  extracting     = this.extraction.extracting;
+  extractionStep = this.extraction.step;
+  extractionPct  = this.extraction.progress;
 
   manualForm = this.fb.group({
     profileId: [null as number | null, Validators.required],
@@ -284,42 +273,19 @@ export class ExamFormComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.profileSvc.getAll().subscribe(r => this.profiles.set(r.data || []));
-    this.examTypeSvc.getAll().subscribe(r => this.examTypes.set(r.data || []));
-
-    // Socket listeners
-    this.subs.push(
-      this.socketSvc.extractionProgress$.subscribe(p => {
-        this.extractionStep.set(p.step);
-        this.extractionPct.set(p.progress);
-      }),
-      this.socketSvc.extractionComplete$.subscribe(({ exam }) => {
-        this.finishExtraction();
-        this.toast.add({ severity: 'success', summary: 'Extração concluída!', detail: 'Exame salvo com sucesso.' });
-        this.router.navigate(['/exams', exam.id]);
-      }),
-      this.socketSvc.extractionError$.subscribe(({ error }) => {
-        this.finishExtraction();
-        this.toast.add({ severity: 'error', summary: 'Erro na extração', detail: error });
-      })
-    );
+    this.exams.loadFormOptions();
+    this.extraction.init(examId => this.router.navigate(['/exams', examId]));
   }
 
   ngOnDestroy(): void {
-    this.subs.forEach(s => s.unsubscribe());
-    clearTimeout(this.extractionTimeoutId);
-  }
-
-  private finishExtraction(): void {
-    clearTimeout(this.extractionTimeoutId);
-    this.extracting.set(false);
+    this.extraction.destroy();
   }
 
   onExamTypeChange(examTypeId: number): void {
-    const et = this.examTypes().find(e => e.id === examTypeId);
-    const m = et?.markers || [];
-    this.markers.set(m);
-    this.results = m.map(mk => ({ markerName: mk.name, value: null, unit: mk.unit, refMin: mk.refMin, refMax: mk.refMax }));
+    const examType = this.examTypes().find(e => e.id === examTypeId);
+    const markers = examType?.markers || [];
+    this.markers.set(markers);
+    this.results = markersToResultRows(markers);
   }
 
   onFileChange(event: Event): void {
@@ -336,58 +302,19 @@ export class ExamFormComponent implements OnInit, OnDestroy {
   submitManual(): void {
     if (this.manualForm.invalid) return;
     this.saving.set(true);
-    const v = this.manualForm.value;
-    const d = v.examDate instanceof Date ? v.examDate.toISOString().split('T')[0] : v.examDate;
+    const payload = buildManualExamPayload(this.manualForm.getRawValue(), this.results);
 
-    const payload = {
-      profileId: v.profileId,
-      examTypeId: v.examTypeId,
-      examDate: d,
-      labName: v.labName || null,
-      notes: v.notes || null,
-      results: this.results.filter(r => r.value !== null),
-    };
-
-    this.examSvc.create(payload).subscribe({
-      next: r => {
-        this.saving.set(false);
-        this.toast.add({ severity: 'success', summary: 'Salvo!', detail: 'Exame registrado.' });
-        this.router.navigate(['/exams', r.data!.id]);
-      },
-      error: err => {
-        this.saving.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro ao salvar.' });
-      },
-    });
+    this.exams.createExam(
+      payload,
+      examId => { this.saving.set(false); this.router.navigate(['/exams', examId]); },
+      () => this.saving.set(false),
+    );
   }
 
   submitPdf(): void {
-    if (!this.pdfFile()) return;
-    this.extracting.set(true);
-    this.extractionStep.set('Enviando PDF...');
-    this.extractionPct.set(5);
-
-    const fd = new FormData();
-    fd.append('pdf', this.pdfFile()!);
-    fd.append('profileId', String(this.pdfForm.value.profileId));
-
-    // Não depende só do socket: se nenhum evento de conclusão/erro chegar (ex:
-    // conexão de tempo real indisponível), destrava o formulário mesmo assim.
-    clearTimeout(this.extractionTimeoutId);
-    this.extractionTimeoutId = setTimeout(() => {
-      this.extracting.set(false);
-      this.toast.add({
-        severity: 'warn',
-        summary: 'Sem resposta',
-        detail: 'A extração está demorando mais que o esperado. Verifique a lista de exames em instantes.',
-      });
-    }, 60000);
-
-    this.http.post(`${environment.apiUrl}/exams/upload-pdf`, fd).subscribe({
-      error: err => {
-        this.finishExtraction();
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: err.error?.error || 'Erro no upload.' });
-      },
-    });
+    const file = this.pdfFile();
+    const profileId = this.pdfForm.value.profileId;
+    if (!file || !profileId) return;
+    this.extraction.upload(profileId, file);
   }
 }

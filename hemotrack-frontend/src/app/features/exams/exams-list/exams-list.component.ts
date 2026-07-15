@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,9 +9,10 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { SkeletonModule } from 'primeng/skeleton';
-import { ConfirmationService, MessageService } from 'primeng/api';
-import { ExamService, ProfileService, ExamTypeService } from '../../../core/services/api.service';
-import { BloodExam, Profile, ExamType } from '../../../core/models';
+import { ConfirmationService } from 'primeng/api';
+import { ExamsFacade } from '../facades/exams.facade';
+import { confirmDelete } from '@shared/utils/confirm-delete.util';
+import { BloodExam } from '../models/exam.model';
 
 @Component({
   selector: 'app-exams-list',
@@ -159,57 +160,29 @@ import { BloodExam, Profile, ExamType } from '../../../core/models';
   `],
 })
 export class ExamsListComponent implements OnInit {
-  private examSvc     = inject(ExamService);
-  private profileSvc  = inject(ProfileService);
-  private examTypeSvc = inject(ExamTypeService);
-  private confirm     = inject(ConfirmationService);
-  private toast       = inject(MessageService);
+  private examsFacade = inject(ExamsFacade);
+  private confirm = inject(ConfirmationService);
 
-  loading     = signal(true);
-  exams       = signal<BloodExam[]>([]);
-  profiles    = signal<Profile[]>([]);
-  examTypes   = signal<ExamType[]>([]);
+  loading   = this.examsFacade.loading;
+  exams     = this.examsFacade.exams;
+  profiles  = this.examsFacade.profiles;
+  examTypes = this.examsFacade.examTypes;
 
   selectedProfile?: number;
   selectedExamType?: number;
 
   ngOnInit(): void {
-    this.profileSvc.getAll().subscribe(r => this.profiles.set(r.data || []));
-    this.examTypeSvc.getAll().subscribe(r => this.examTypes.set(r.data || []));
+    this.examsFacade.loadFormOptions();
     this.loadExams();
   }
 
   loadExams(): void {
-    this.loading.set(true);
-    this.examSvc.getAll({
-      profileId:  this.selectedProfile,
-      examTypeId: this.selectedExamType,
-    }).subscribe({
-      next: r => { this.exams.set(r.data || []); this.loading.set(false); },
-      error: () => {
-        this.loading.set(false);
-        this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível carregar os exames.' });
-      },
-    });
+    this.examsFacade.loadExams({ profileId: this.selectedProfile, examTypeId: this.selectedExamType });
   }
 
   confirmDelete(exam: BloodExam): void {
-    this.confirm.confirm({
-      message: `Remover exame de ${exam.examDate}?`,
-      header: 'Confirmar exclusão',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Remover',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => {
-        this.examSvc.delete(exam.id).subscribe({
-          next: () => {
-            this.toast.add({ severity: 'success', summary: 'Removido', detail: 'Exame excluído.' });
-            this.loadExams();
-          },
-          error: () => this.toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível excluir.' }),
-        });
-      },
+    confirmDelete(this.confirm, `Remover exame de ${exam.examDate}?`, () => {
+      this.examsFacade.deleteExam(exam.id, () => this.loadExams());
     });
   }
 }
