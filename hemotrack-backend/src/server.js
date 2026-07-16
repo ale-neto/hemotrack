@@ -71,17 +71,16 @@ app.use(errorHandler);
 async function bootstrap() {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connected (PostgreSQL)');
+    console.log('Database connected (PostgreSQL)');
 
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
-    console.log('✅ Models synchronized');
+    console.log('Models synchronized');
 
     await seed();
 
     const PORT = process.env.PORT || 3000;
     httpServer.listen(PORT, () => {
-      console.log(`🚀 HemoTrack backend running on http://localhost:${PORT}`);
-      console.log(`📡 Socket.IO ready`);
+      console.log(`Backend running on http://localhost:${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (err) {

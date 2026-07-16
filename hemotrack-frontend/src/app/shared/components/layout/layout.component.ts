@@ -21,7 +21,6 @@ interface NavItem {
       <aside class="sidebar" [class.collapsed]="collapsed()">
         <div class="sidebar-header">
           <div class="sidebar-logo">
-            <span class="logo-icon">🩸</span>
             @if (!collapsed()) {
               <span class="logo-text">HemoTrack</span>
             }

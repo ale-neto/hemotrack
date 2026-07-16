@@ -1,6 +1,6 @@
 🌐 **Language:** English | [Português (Brasil)](README.pt-BR.md)
 
-# 🩸 HemoTrack
+# HemoTrack
 
 HemoTrack is a full-stack application for organizing blood exam results, visualizing result trends over time, and getting an AI-assisted summary of the numbers — with support for multiple profiles (e.g. family members) and multiple AI providers (Gemini, OpenAI, or Claude, chosen by the user).
 

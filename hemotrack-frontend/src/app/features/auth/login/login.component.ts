@@ -21,7 +21,6 @@ import { NotificationService } from '@core/services/notification.service';
 
       <div class="auth-card fade-in">
         <div class="auth-logo">
-          <span class="logo-icon">🩸</span>
           <span class="logo-text">HemoTrack</span>
         </div>
         <h1 class="auth-title">Bem-vindo de volta</h1>

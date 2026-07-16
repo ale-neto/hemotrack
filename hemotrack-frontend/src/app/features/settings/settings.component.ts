@@ -232,7 +232,7 @@ export class SettingsComponent implements OnInit {
 
   aiForm = this.fb.group({
     aiProvider: ['gemini', Validators.required],
-    aiModel:    ['gemini-1.5-flash'],
+    aiModel:    [AI_MODEL_OPTIONS['gemini'][0].value],
     aiApiKey:   [''],
   });
 
@@ -249,12 +249,16 @@ export class SettingsComponent implements OnInit {
     effect(() => {
       const settings = this.settingsFacade.aiSettings();
       if (!settings) return;
+      const models = AI_MODEL_OPTIONS[settings.aiProvider] || [];
+      const aiModel = models.some(m => m.value === settings.aiModel)
+        ? settings.aiModel
+        : models[0]?.value ?? '';
       this.aiForm.patchValue({
         aiProvider: settings.aiProvider,
-        aiModel: settings.aiModel,
+        aiModel,
         aiApiKey: settings.aiApiKey ? '••••••••' : '',
       });
-      this.availableModels.set(AI_MODEL_OPTIONS[settings.aiProvider] || []);
+      this.availableModels.set(models);
     });
   }
 

@@ -31,7 +31,6 @@ export class SocketService implements OnDestroy {
     });
 
     this.socket.on('connect', () => {
-      console.log('🔌 socket conectado, emitindo join_room para:', this.auth.user()?.id);
       const user = this.auth.user();
       if (user?.id) this.socket!.emit('join_room', user.id);
     });
